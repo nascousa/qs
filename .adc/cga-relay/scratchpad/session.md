@@ -139,6 +139,8 @@ Use this file for task handoff notes, progress, validation evidence, blockers, r
 - CGA-Relay activity/index recording could not be completed because the current tool surface does not expose a ContextGraph/CGA-Relay recording or changed-file indexing tool.
 - Updated QS to 1.4.34 by moving legacy payload, ZIP/Base64, and UltraTransfer helpers into `src/tools/` for manual reuse.
 - Updated README and ADC guidance so QS no longer treats release payload generation or 25000-character split-transfer packaging as an active default workflow.
+- Validation passed for QS 1.4.34 with recursive PowerShell parse checks for `src/`, JSON parse checks for settings/profiles, moved-path checks, `tests/smoke-index.ps1`, `tests/smoke-text-transfer.ps1`, `tests/smoke-ultra-transfer.ps1`, `tests/smoke-payload.ps1`, and clean VS Code diagnostics.
+- No release payload or split-transfer artifact was generated for QS 1.4.34.
 - Updated QS to 1.4.27 so Search button work runs through `InvokeQuickSearchWithProcessingDialog` in a background PowerShell job instead of blocking the Windows Forms UI thread.
 - Added `src/QuickSearch.Search.ps1` as a pure filesystem search helper used by both the UI path and the background search job.
 - Updated result population to batch ListBox updates with `BeginUpdate`/`AddRange`/`EndUpdate` and to log only the result count instead of writing the full result set for every item.
@@ -187,3 +189,6 @@ Use this file for task handoff notes, progress, validation evidence, blockers, r
 - Profile selection now applies profile overlays to drive letter, document path, TEAM path, type list, ignored folders, allowed/ignored extensions, and related index settings, then persists the selected profile file name in config.
 - Validation passed for QS 1.4.23 with `tests/smoke-index.ps1`, `tests/smoke-text-transfer.ps1`, `tests/smoke-ultra-transfer.ps1`, and `tests/smoke-payload.ps1`; the smoke-index suite includes default profile discovery and `nate.profile.json` overlay checks.
 - Generated matching lightweight source payload `release/1.4.23-payload.txt`; the payload is 19720 characters, stays under the 25000-character target, includes the profile helper, and decoded back to parseable PowerShell source.
+- Initialized `D:\Repos\QuickSearch` as a git repository on branch `main`, set `origin` to `git@github.com:nasco_microsoft/qs.git`, and created root commit `5692e36` (`Initial QuickSearch import`).
+- Pushed QS source to private GitHub repository `nasco_microsoft/qs` branch `main` using existing GitHub CLI HTTPS authentication for account `nasco_microsoft`; the local SSH `origin` remains configured as requested, but direct SSH push failed with `Permission denied (publickey)` until a valid GitHub SSH key is configured.
+- CGA-Relay activity/index recording could not be completed because the current tool surface does not expose a ContextGraph/CGA-Relay recording or changed-file indexing tool.

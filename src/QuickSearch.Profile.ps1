@@ -165,7 +165,7 @@ Function ApplyQuickSearchProfile {
     CopyQuickSearchProfileConfigValue -Profile $Profile -ProfileName 'DriveLetter' -Config $Config -ConfigName 'DriveLetter'
     CopyQuickSearchProfileConfigValue -Profile $Profile -ProfileName 'DocPath' -Config $Config -ConfigName 'Path'
     CopyQuickSearchProfileConfigValue -Profile $Profile -ProfileName 'Path' -Config $Config -ConfigName 'Path'
-    foreach ($name in @('TeamPath', 'Types', 'Ignored', 'IgnoredFilenames', 'AllowedFileExtNames', 'IgnoredFileExtNames', 'TagCount', 'MaxTagFileSizeMB')) {
+    foreach ($name in @('TeamPath', 'Types', 'Ignored', 'IgnoredFilenames', 'AllowedFileExtNames', 'IgnoredFileExtNames', 'TagCount', 'MaxTagFileSizeMB', 'MaxSearchResults', 'MaxContentScanFileSizeMB', 'LiveContentScanScope', 'UseRipgrep', 'UseRipgrepForLiveContentScan')) {
         CopyQuickSearchProfileConfigValue -Profile $Profile -ProfileName $name -Config $Config -ConfigName $name
     }
     if (-not [string]::IsNullOrWhiteSpace($ProfileName)) {

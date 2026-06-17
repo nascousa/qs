@@ -469,7 +469,7 @@ Function SetPreviewContent {
     $PreviewBox.Text = $Content
 }
 
-Function ShowTagManagerSettings {
+Function ShowIndexSettings {
     param(
         [System.Windows.Forms.Form]$Owner,
         [object]$Config,
@@ -479,7 +479,7 @@ Function ShowTagManagerSettings {
     )
 
     $settingsForm = New-Object System.Windows.Forms.Form
-    $settingsForm.Text = 'TagManager Settings'
+    $settingsForm.Text = 'Index Settings'
     $settingsForm.ClientSize = New-Object System.Drawing.Size(660, 390)
     $settingsForm.AutoSize = $false
     $settingsForm.AutoScaleMode = [System.Windows.Forms.AutoScaleMode]::Dpi
@@ -588,19 +588,19 @@ Function ShowTagManagerSettings {
 
     $Button_Save = New-Object System.Windows.Forms.Button
     $Button_Save.Text = 'Save'
-    $Button_Save.Location = New-Object System.Drawing.Point(260, 325)
+    $Button_Save.Location = New-Object System.Drawing.Point(230, 325)
     $Button_Save.Width = 80
     $settingsForm.Controls.Add($Button_Save)
 
     $Button_RebuildIndex = New-Object System.Windows.Forms.Button
-    $Button_RebuildIndex.Text = 'Rebuild Index'
-    $Button_RebuildIndex.Location = New-Object System.Drawing.Point(350, 325)
-    $Button_RebuildIndex.Width = 110
+    $Button_RebuildIndex.Text = 'Re-Index Team Folder'
+    $Button_RebuildIndex.Location = New-Object System.Drawing.Point(320, 325)
+    $Button_RebuildIndex.Width = 150
     $settingsForm.Controls.Add($Button_RebuildIndex)
 
     $Button_Close = New-Object System.Windows.Forms.Button
     $Button_Close.Text = 'Close'
-    $Button_Close.Location = New-Object System.Drawing.Point(470, 325)
+    $Button_Close.Location = New-Object System.Drawing.Point(480, 325)
     $Button_Close.Width = 80
     $settingsForm.Controls.Add($Button_Close)
 
@@ -631,11 +631,11 @@ Function ShowTagManagerSettings {
             return
         }
 
-        $Label_Status.Text = 'Rebuilding index...'
+        $Label_Status.Text = 'Re-indexing TEAM folder...'
         $Button_Save.Enabled = $false
         $Button_RebuildIndex.Enabled = $false
         try {
-            $created = InvokeFileIndexWithProcessingDialog -Owner $settingsForm -Title 'Rebuilding Index' -Message 'Indexing in progress, please wait...' -Root $teamRoot -Config $Config -IndexFilePath $IndexFilePath
+            $created = InvokeFileIndexWithProcessingDialog -Owner $settingsForm -Title 'Index Team Folder' -Message 'Indexing in progress, this may take up to 10 minutes, please wait...' -Root $teamRoot -Config $Config -IndexFilePath $IndexFilePath
         }
         finally {
             $Button_Save.Enabled = $true

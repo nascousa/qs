@@ -197,7 +197,9 @@ Function InvokeQuickSearchWithProcessingDialog {
         [bool]$SearchContent,
         [bool]$UseIndex,
         [string]$IndexFilePath,
-        [object]$Config = $null
+        [object]$Config = $null,
+        [string]$SelectedType = '',
+        [string]$ScanScope = ''
     )
 
     $indexScriptPath = Join-Path -Path $PSScriptRoot -ChildPath 'QuickSearch.Index.ps1'
@@ -229,6 +231,12 @@ Function InvokeQuickSearchWithProcessingDialog {
     }
 
     try {
+        if ($UseIndex) {
+            $maxResults = GetQuickSearchMaxSearchResults -Config $Config
+            $results = @(SearchFileIndex -IndexFilePath $IndexFilePath -Keyword $Keyword -MaxResults $maxResults)
+            return [PSCustomObject]@{ Completed = $true; Canceled = $false; Failed = $false; Results = $results; ErrorMessage = '' }
+        }
+
         $searchJob = Start-Job -ScriptBlock {
             param(
                 [string]$JobIndexScriptPath,
@@ -238,7 +246,9 @@ Function InvokeQuickSearchWithProcessingDialog {
                 [bool]$JobSearchContent,
                 [bool]$JobUseIndex,
                 [string]$JobIndexFilePath,
-                [object]$JobConfig
+                [object]$JobConfig,
+                [string]$JobSelectedType,
+                [string]$JobScanScope
             )
 
             $ErrorActionPreference = 'Stop'
@@ -246,11 +256,12 @@ Function InvokeQuickSearchWithProcessingDialog {
             . $JobSearchScriptPath
 
             if ($JobUseIndex) {
-                return @(SearchFileIndex -IndexFilePath $JobIndexFilePath -Keyword $JobKeyword)
+                $maxResults = GetQuickSearchMaxSearchResults -Config $JobConfig
+                return @(SearchFileIndex -IndexFilePath $JobIndexFilePath -Keyword $JobKeyword -MaxResults $maxResults)
             }
 
-            return @(SearchFiles -Root $JobRoot -Keyword $JobKeyword -SearchContent $JobSearchContent -Config $JobConfig)
-        } -ArgumentList $indexScriptPath, $searchScriptPath, $Root, $Keyword, $SearchContent, $UseIndex, $IndexFilePath, $Config
+            return @(SearchFiles -Root $JobRoot -Keyword $JobKeyword -SearchContent $JobSearchContent -Config $JobConfig -SelectedType $JobSelectedType -IndexFilePath $JobIndexFilePath -ScanScope $JobScanScope)
+        } -ArgumentList $indexScriptPath, $searchScriptPath, $Root, $Keyword, $SearchContent, $UseIndex, $IndexFilePath, $Config, $SelectedType, $ScanScope
 
         while ($searchJob.State -in @('NotStarted', 'Running')) {
             if ($cancelState.Requested) {

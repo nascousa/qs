@@ -8,9 +8,5 @@
         "SOP",
         "CASE",
         "TEAM"
-    ],
-    "Ignored": [
-        "On-Call_Handoff",
-        "~DELETING"
     ]
 }

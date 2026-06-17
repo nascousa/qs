@@ -1,14 +1,14 @@
 # Project Status
 
-**Current Phase:** Selectable profiles, inverted TEAM index search, and archived helper tools  
-**Project Version:** v1.4.34  
+**Current Phase:** Simplified README, selectable profiles, unified Index popup, optimized Live Content Scan, and archived helper tools  
+**Project Version:** v1.4.40  
 **ADC Standard:** 1.1.27  
 **Date:** 2026-06-17
 
 ## Active Goals
 
 - Preserve the current QS Windows PowerShell desktop workflow.
-- Keep TagManager-style top-word indexing integrated into QS instead of a separate maintenance surface.
+- Keep top-word indexing integrated into QS through the Index popup instead of a separate maintenance surface.
 - Keep QS discoverable to AI assistants through ADC project context.
 - Prepare QS for ContextGraph/CGA-Relay indexing and change aggregation.
 - Document known script risks before functional fixes are attempted.
@@ -57,14 +57,21 @@
 - 2026-06-17: Updated preview keyword highlighting so highlighted search keywords are also bold in text and HTML preview modes.
 - 2026-06-17: Updated Live Content Scan to filter candidate files through runtime allowed/ignored settings and stop reading each file after the first simple keyword match.
 - 2026-06-17: Moved legacy payload, ZIP/Base64, and UltraTransfer helpers into `src/tools/` for manual reuse; QS no longer has a default release payload or split-transfer workflow.
+- 2026-06-17: Updated Live Content Scan with `MaxSearchResults`, `MaxContentScanFileSizeMB`, TEAM index candidate reuse, a `Scope` selector for ALL scans, expanded default ignored folders/extensions, ignored-folder traversal pruning, and optional ripgrep acceleration with PowerShell fallback.
+- 2026-06-17: Renamed the main-window `TagManager` entry to `Index` and moved the `Re-Index Team Folder` action into the Index settings popup.
+- 2026-06-17: Removed duplicated ignored-folder defaults from profile files so global ignore/search policy stays in `src/settings/config.json` unless a profile intentionally overrides it.
+- 2026-06-17: Added process-local parsed JSON caching for TEAM quick index searches, materialized schema v2 matches in a single document pass, and normalized reusable index timestamp comparison after JSON parsing.
+- 2026-06-17: Moved the top `Status` label and status textbox 10px left so the controls are less crowded against the right edge.
+- 2026-06-17: Rewrote README as a shorter user guide focused on starting QS, choosing search modes, maintaining the Index popup, previewing files, and validating changes.
 
 ## Current Validation State
 
-- PowerShell parse-only validation, JSON parse checks, `src/QuickSearch.vbs` syntax execution with `QS_SKIP_AUTORUN=1`, and `tests/smoke-index.ps1` passed after the Live Content Scan filtering update. Archived helper smoke tests are run when `src/tools/` changes.
+- Validation passed for QS 1.4.40 with recursive PowerShell parse checks for `src/`, JSON parse checks for settings/profiles/sample index, and `tests/smoke-index.ps1`. Archived helper smoke tests are run when `src/tools/` changes.
 - Manual UI smoke testing is still recommended on a machine with the expected mapped drives.
 
 ## Current Risks
 
 - QS has a lightweight non-GUI index smoke test, but no full Pester suite yet.
 - First-time TEAM re-indexing on large mapped-drive folders can still be slow, but interrupted rebuilds now leave `index.json.tmp` checkpoint data that the next rebuild can reuse.
+- Live Content Scan is still a live content read, but it is now bounded and can avoid full TEAM enumeration when a current TEAM index exists.
 - Mapped-drive availability is environment-specific and must be validated manually.

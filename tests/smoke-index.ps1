@@ -46,9 +46,19 @@ try {
     Assert-True -Condition (Test-Path -LiteralPath $repoNateProfilePath) -Message 'QS alternate profile fixture should be src\profiles\nate.profile.json.'
     Assert-True -Condition (Test-Path -LiteralPath $repoDataPath -PathType Container) -Message 'QS index data directory should live under src\data.'
     $repoConfig = Get-Content -LiteralPath $repoConfigPath -Raw | ConvertFrom-Json
-    Get-Content -LiteralPath $repoDefaultProfilePath -Raw | ConvertFrom-Json | Out-Null
-    Get-Content -LiteralPath $repoNateProfilePath -Raw | ConvertFrom-Json | Out-Null
-    Assert-True -Condition ('1.4.34' -eq $repoConfig.Version) -Message 'QS version should live in src\settings\config.json Version.'
+    $repoDefaultProfile = Get-Content -LiteralPath $repoDefaultProfilePath -Raw | ConvertFrom-Json
+    $repoNateProfile = Get-Content -LiteralPath $repoNateProfilePath -Raw | ConvertFrom-Json
+    Assert-True -Condition ('1.4.40' -eq $repoConfig.Version) -Message 'QS version should live in src\settings\config.json Version.'
+    Assert-True -Condition (200 -eq $repoConfig.MaxSearchResults) -Message 'QS config should bound default search result count.'
+    Assert-True -Condition (10 -eq $repoConfig.MaxContentScanFileSizeMB) -Message 'QS config should bound default live content scan file size.'
+    Assert-True -Condition ('Configured Types' -eq $repoConfig.LiveContentScanScope) -Message 'QS config should default ALL live scans to configured type roots.'
+    Assert-True -Condition ($true -eq $repoConfig.UseRipgrep) -Message 'QS config should allow optional ripgrep acceleration by default.'
+    Assert-True -Condition ($repoConfig.Ignored -contains 'node_modules') -Message 'QS config should ignore common dependency folders by default.'
+    Assert-True -Condition ($repoConfig.Ignored -contains 'archive') -Message 'QS config should ignore common archive folders by default.'
+    Assert-True -Condition ($repoConfig.IgnoredFileExtNames -contains '.zip') -Message 'QS config should ignore archive files by default.'
+    Assert-True -Condition ($repoConfig.IgnoredFileExtNames -contains '.pdf') -Message 'QS config should ignore binary document formats by default.'
+    Assert-True -Condition ($null -eq $repoDefaultProfile.PSObject.Properties['Ignored']) -Message 'Default profile should not duplicate global ignored folders from config.'
+    Assert-True -Condition ($null -eq $repoNateProfile.PSObject.Properties['Ignored']) -Message 'Nate profile should not duplicate global ignored folders from config.'
     $selectedProfileName = GetQuickSearchSelectedProfileName -Config $repoConfig
     $selectedProfilePath = ResolveQuickSearchProfilePath -ProfilesDirectory $repoProfilesPath -ProfileName $selectedProfileName
     Assert-True -Condition (Test-Path -LiteralPath $selectedProfilePath) -Message 'QS selected profile should resolve to an existing profile file.'
@@ -67,7 +77,7 @@ try {
     Assert-True -Condition ('default.profile.json' -eq (GetQuickSearchDefaultProfileName)) -Message 'Default profile name should be default.profile.json.'
     Assert-True -Condition ('default.profile.json' -eq (GetQuickSearchSelectedProfileName -Config ([PSCustomObject]@{}))) -Message 'Missing profile setting should select the default profile.'
     Assert-True -Condition ($repoDefaultProfilePath -eq (ResolveQuickSearchProfilePath -ProfilesDirectory $repoProfilesPath -ProfileName 'missing.profile.json')) -Message 'Missing selected profile should resolve to default.profile.json.'
-    $nateConfig = [PSCustomObject]@{ DriveLetter = 'Z'; Path = ':\Old\Docs\'; TeamPath = ':\Old\Team\'; Types = @('ALL') }
+    $nateConfig = [PSCustomObject]@{ DriveLetter = 'Z'; Path = ':\Old\Docs\'; TeamPath = ':\Old\Team\'; Types = @('ALL'); Ignored = @('node_modules', 'archive') }
     $nateProfileState = UseQuickSearchProfile -Config $nateConfig -ProfilesDirectory $repoProfilesPath -ProfileName 'nate.profile.json'
     Assert-True -Condition ($nateProfileState.Applied) -Message 'UseQuickSearchProfile should apply an existing profile.'
     Assert-True -Condition ('nate.profile.json' -eq $nateProfileState.Name) -Message 'Applied profile state should report the selected profile name.'
@@ -75,6 +85,7 @@ try {
     Assert-True -Condition (':\Orcas_Main\TSG-SOP\' -eq $nateConfig.Path) -Message 'Profile DocPath should override config Path.'
     Assert-True -Condition (':\Orcas_Main\Team\nasco\' -eq $nateConfig.TeamPath) -Message 'Profile should override TeamPath.'
     Assert-True -Condition ($nateConfig.Types -contains 'TEAM') -Message 'Profile should override search Types.'
+    Assert-True -Condition ($nateConfig.Ignored -contains 'node_modules') -Message 'Profile should preserve global ignored folders when the profile does not override them.'
     Assert-True -Condition ('nate.profile.json' -eq $nateConfig.ProfileName) -Message 'Profile apply should persist the selected profile name in config.'
 
     $quickSearchScriptPaths = @(Get-ChildItem -LiteralPath (Join-Path -Path $repoRoot -ChildPath 'src') -Recurse -File -Filter 'QuickSearch*.ps1' | ForEach-Object { $_.FullName })
@@ -90,6 +101,8 @@ try {
     Assert-True -Condition ($mainScriptContent -match 'Scanning file content live') -Message 'Content-search progress message should clarify that content search scans live files.'
     Assert-True -Condition ($mainScriptContent -match 'InitializeQuickSearchKeywordPlaceholder') -Message 'Keyword textbox should initialize placeholder behavior.'
     Assert-True -Condition ($mainScriptContent -match 'GetQuickSearchKeywordText') -Message 'Search should read the user keyword without treating placeholder text as input.'
+    Assert-True -Condition ($mainScriptContent -match 'ComboBox_LiveScanScope') -Message 'UI should expose a Live Content Scan scope selector.'
+    Assert-True -Condition ($mainScriptContent -match 'Configured Types') -Message 'UI should default Live Content Scan scope to configured type roots.'
     Assert-True -Condition ($mainScriptContent -match '\$highlightPreviewKeyword\s*=\s*-not \[string\]::IsNullOrWhiteSpace\(\$SearchState\.Keyword\)') -Message 'Preview keyword highlighting should use the active search keyword, not only live content scan state.'
     $supportScriptContent = Get-Content -LiteralPath $supportScriptPath -Raw
     Assert-True -Condition ($supportScriptContent -match 'Add_Enter') -Message 'Keyword placeholder should clear when the textbox receives focus.'
@@ -98,11 +111,24 @@ try {
     Assert-True -Condition ($asyncScriptContent -match '\$messageLabel\.Text\s*=\s*\$Message') -Message 'Background search dialog body should show only the search message.'
     Assert-True -Condition ($asyncScriptContent -notmatch 'Elapsed:') -Message 'Elapsed time should not be duplicated in the search dialog body.'
     Assert-True -Condition ($mainScriptContent -match '-Config \$config') -Message 'UI background searches should pass runtime config for live content scan filtering.'
+    Assert-True -Condition ($asyncScriptContent -match 'JobSelectedType') -Message 'Background search should receive the selected search type.'
+    Assert-True -Condition ($asyncScriptContent -match 'JobScanScope') -Message 'Background search should receive the live scan scope.'
+
+    $searchScriptPath = Join-Path -Path $repoRoot -ChildPath 'src\QuickSearch.Search.ps1'
+    $searchScriptContent = Get-Content -LiteralPath $searchScriptPath -Raw
+    Assert-True -Condition ($searchScriptContent -match 'MaxSearchResults') -Message 'Filesystem search should support a max result count.'
+    Assert-True -Condition ($searchScriptContent -match 'MaxContentScanFileSizeMB') -Message 'Live content scan should support a max file size.'
+    Assert-True -Condition ($searchScriptContent -match 'GetQuickSearchIndexCandidateFiles') -Message 'TEAM live content scan should be able to reuse index document candidates.'
+    Assert-True -Condition ($searchScriptContent -match 'InvokeQuickSearchRipgrepSearch') -Message 'Live content scan should optionally use ripgrep.'
+    Assert-True -Condition ($searchScriptContent -match 'TestQuickSearchDirectoryAllowed') -Message 'PowerShell live scan fallback should prune ignored directories.'
 
     $indexScriptPath = Join-Path -Path $repoRoot -ChildPath 'src\QuickSearch.Index.ps1'
     $indexScriptContent = Get-Content -LiteralPath $indexScriptPath -Raw
     Assert-True -Condition ($indexScriptContent -notmatch '\$content\s*=\s*Get-Content\s+-LiteralPath\s+\$FilePath\s+-Raw') -Message 'Top-word indexing should not read an entire target file into memory.'
     Assert-True -Condition ($indexScriptContent -notmatch '\$words\s*=\s*\$content\s+-split') -Message 'Top-word indexing should not materialize all split words at once.'
+    Assert-True -Condition ($indexScriptContent -match 'ReadCachedFileIndexData') -Message 'Index searches should read JSON through the reusable cached index data helper.'
+    Assert-True -Condition ($indexScriptContent -match 'QuickSearchFileIndexCache') -Message 'Index searches should cache parsed index JSON within the current process.'
+    Assert-True -Condition ($indexScriptContent -match 'LastWriteUtcTicks') -Message 'Index cache entries should be invalidated by file timestamp metadata.'
 
     $launcherContent = Get-Content -LiteralPath $launcherPath -Raw
     Assert-True -Condition ($launcherContent -match 'QuickSearch\.vbs') -Message 'QuickSearch.bat should delegate UI launch to the no-console VBS launcher.'
@@ -322,6 +348,133 @@ try {
     Assert-True -Condition ($liveAllowedMatches -contains $allowedTextPath) -Message 'Live content scan should keep allowed text files.'
     Assert-True -Condition ($liveAllowedMatches -contains $allowedMarkdownPath) -Message 'Live content scan should keep allowed Markdown files.'
 
+    $searchLimitRoot = Join-Path -Path $testRoot -ChildPath 'search-limits'
+    New-Item -ItemType Directory -Path $searchLimitRoot -Force | Out-Null
+    $limitOnePath = Join-Path -Path $searchLimitRoot -ChildPath 'limit-one.txt'
+    $limitTwoPath = Join-Path -Path $searchLimitRoot -ChildPath 'limit-two.txt'
+    $limitThreePath = Join-Path -Path $searchLimitRoot -ChildPath 'limit-three.txt'
+    Set-Content -LiteralPath $limitOnePath -Value 'limitneedle one' -NoNewline
+    Set-Content -LiteralPath $limitTwoPath -Value 'limitneedle two' -NoNewline
+    Set-Content -LiteralPath $limitThreePath -Value 'limitneedle three' -NoNewline
+    $limitConfig = [PSCustomObject]@{
+        MaxSearchResults = 2
+        MaxContentScanFileSizeMB = 10
+        UseRipgrep = $false
+        AllowedFileExtNames = @('.txt')
+        IgnoredFilenames = @()
+        IgnoredFileExtNames = @()
+        Ignored = @()
+    }
+    $limitedContentMatches = @(SearchFiles -Root $searchLimitRoot -Keyword 'limitneedle' -SearchContent $true -Config $limitConfig)
+    Assert-True -Condition (2 -eq $limitedContentMatches.Count) -Message 'Live content scan should stop at MaxSearchResults.'
+    $limitedFilenameMatches = @(SearchFiles -Root $searchLimitRoot -Keyword 'limit' -SearchContent $false -Config $limitConfig)
+    Assert-True -Condition (2 -eq $limitedFilenameMatches.Count) -Message 'Filename search should stop at MaxSearchResults.'
+
+    $largeContentPath = Join-Path -Path $searchLimitRoot -ChildPath 'large-content.txt'
+    Set-Content -LiteralPath $largeContentPath -Value ('largeonly ' * 140000) -NoNewline
+    $sizeLimitConfig = [PSCustomObject]@{
+        MaxSearchResults = 10
+        MaxContentScanFileSizeMB = 1
+        UseRipgrep = $false
+        AllowedFileExtNames = @('.txt')
+        IgnoredFilenames = @()
+        IgnoredFileExtNames = @()
+        Ignored = @()
+    }
+    $largeContentMatches = @(SearchFiles -Root $searchLimitRoot -Keyword 'largeonly' -SearchContent $true -Config $sizeLimitConfig)
+    Assert-True -Condition (0 -eq $largeContentMatches.Count) -Message 'Live content scan should skip files larger than MaxContentScanFileSizeMB.'
+
+    $ignoredTraversalRoot = Join-Path -Path $testRoot -ChildPath 'ignored-traversal'
+    $ignoredNodeModules = Join-Path -Path $ignoredTraversalRoot -ChildPath 'node_modules'
+    New-Item -ItemType Directory -Path $ignoredNodeModules -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path -Path $ignoredNodeModules -ChildPath 'ignored-hit.txt') -Value 'ignoredneedle' -NoNewline
+    $ignoredTraversalConfig = [PSCustomObject]@{
+        MaxSearchResults = 10
+        MaxContentScanFileSizeMB = 10
+        UseRipgrep = $false
+        AllowedFileExtNames = @('.txt')
+        IgnoredFilenames = @()
+        IgnoredFileExtNames = @()
+        Ignored = @('node_modules')
+    }
+    $ignoredTraversalMatches = @(SearchFiles -Root $ignoredTraversalRoot -Keyword 'ignoredneedle' -SearchContent $true -Config $ignoredTraversalConfig)
+    Assert-True -Condition (0 -eq $ignoredTraversalMatches.Count) -Message 'PowerShell live scan fallback should not enter ignored folders.'
+
+    $scopeRoot = Join-Path -Path $testRoot -ChildPath 'scope-root'
+    $scopeTsgPath = Join-Path -Path $scopeRoot -ChildPath 'TSG'
+    $scopeSopPath = Join-Path -Path $scopeRoot -ChildPath 'SOP'
+    $scopeOtherPath = Join-Path -Path $scopeRoot -ChildPath 'MISC'
+    New-Item -ItemType Directory -Path $scopeTsgPath, $scopeSopPath, $scopeOtherPath -Force | Out-Null
+    $scopeTsgFile = Join-Path -Path $scopeTsgPath -ChildPath 'scope-tsg.txt'
+    $scopeSopFile = Join-Path -Path $scopeSopPath -ChildPath 'scope-sop.txt'
+    $scopeOtherFile = Join-Path -Path $scopeOtherPath -ChildPath 'scope-other.txt'
+    Set-Content -LiteralPath $scopeTsgFile -Value 'scopehit tsg' -NoNewline
+    Set-Content -LiteralPath $scopeSopFile -Value 'scopehit sop' -NoNewline
+    Set-Content -LiteralPath $scopeOtherFile -Value 'scopehit other' -NoNewline
+    $scopeConfig = [PSCustomObject]@{
+        Types = @('ALL', 'TSG', 'SOP', 'TEAM')
+        MaxSearchResults = 10
+        MaxContentScanFileSizeMB = 10
+        UseRipgrep = $false
+        AllowedFileExtNames = @('.txt')
+        IgnoredFilenames = @()
+        IgnoredFileExtNames = @()
+        Ignored = @()
+        LiveContentScanScope = 'Configured Types'
+    }
+    $configuredScopeMatches = @(SearchFiles -Root $scopeRoot -Keyword 'scopehit' -SearchContent $true -Config $scopeConfig -SelectedType 'ALL' -ScanScope 'Configured Types')
+    Assert-True -Condition ($configuredScopeMatches -contains $scopeTsgFile) -Message 'Configured Types live scan should include configured TSG root.'
+    Assert-True -Condition ($configuredScopeMatches -contains $scopeSopFile) -Message 'Configured Types live scan should include configured SOP root.'
+    Assert-True -Condition (-not ($configuredScopeMatches -contains $scopeOtherFile)) -Message 'Configured Types live scan should not scan unrelated ALL subfolders.'
+    $allScopeMatches = @(SearchFiles -Root $scopeRoot -Keyword 'scopehit' -SearchContent $true -Config $scopeConfig -SelectedType 'ALL' -ScanScope 'All')
+    Assert-True -Condition ($allScopeMatches -contains $scopeOtherFile) -Message 'All live scan scope should include unrelated ALL subfolders when explicitly selected.'
+
+    $teamCandidateRoot = Join-Path -Path $testRoot -ChildPath 'team-candidates'
+    $teamCandidateData = Join-Path -Path $testRoot -ChildPath 'team-candidate-data'
+    New-Item -ItemType Directory -Path $teamCandidateRoot, $teamCandidateData -Force | Out-Null
+    $teamIndexedPath = Join-Path -Path $teamCandidateRoot -ChildPath 'indexed.txt'
+    $teamUnindexedPath = Join-Path -Path $teamCandidateRoot -ChildPath 'unindexed.txt'
+    Set-Content -LiteralPath $teamIndexedPath -Value 'teamcandidate indexed' -NoNewline
+    Set-Content -LiteralPath $teamUnindexedPath -Value 'teamcandidate unindexed' -NoNewline
+    $teamCandidateIndexPath = Join-Path -Path $teamCandidateData -ChildPath 'index.json'
+    $teamCandidateIndex = [PSCustomObject]@{
+        schemaVersion = 2
+        root = $teamCandidateRoot
+        createdUtc = [System.DateTime]::UtcNow.ToString('o')
+        documents = @(
+            [PSCustomObject]@{
+                id = 1
+                name = 'indexed.txt'
+                path = $teamIndexedPath
+                sizeInBytes = (Get-Item -LiteralPath $teamIndexedPath).Length
+                lastModified = (Get-Item -LiteralPath $teamIndexedPath).LastWriteTime.ToString('o')
+                lastWriteUtc = (Get-Item -LiteralPath $teamIndexedPath).LastWriteTimeUtc.ToString('o')
+                tags = @()
+                tagCounts = [ordered]@{}
+            }
+        )
+        terms = [ordered]@{ indexed = @(1) }
+    }
+    $teamCandidateIndex | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $teamCandidateIndexPath
+    $teamCandidateConfig = [PSCustomObject]@{
+        MaxSearchResults = 10
+        MaxContentScanFileSizeMB = 10
+        UseRipgrep = $false
+        AllowedFileExtNames = @('.txt')
+        IgnoredFilenames = @()
+        IgnoredFileExtNames = @()
+        Ignored = @()
+    }
+    $teamCandidateMatches = @(SearchFiles -Root $teamCandidateRoot -Keyword 'teamcandidate' -SearchContent $true -Config $teamCandidateConfig -SelectedType 'TEAM' -IndexFilePath $teamCandidateIndexPath)
+    Assert-True -Condition ($teamCandidateMatches -contains $teamIndexedPath) -Message 'TEAM live content scan should search indexed candidate files.'
+    Assert-True -Condition (-not ($teamCandidateMatches -contains $teamUnindexedPath)) -Message 'TEAM live content scan should avoid full enumeration when an index exists.'
+    $teamFallbackMatches = @(SearchFiles -Root $teamCandidateRoot -Keyword 'teamcandidate' -SearchContent $true -Config $teamCandidateConfig -SelectedType 'TEAM' -IndexFilePath (Join-Path -Path $teamCandidateData -ChildPath 'missing-index.json'))
+    Assert-True -Condition ($teamFallbackMatches -contains $teamIndexedPath) -Message 'TEAM live content scan should fall back to filesystem scan when the index is missing.'
+    Assert-True -Condition ($teamFallbackMatches -contains $teamUnindexedPath) -Message 'TEAM live content fallback should scan non-indexed files when the index is missing.'
+
+    $disabledRipgrepResult = InvokeQuickSearchRipgrepSearch -Roots @($teamCandidateRoot) -Keyword 'teamcandidate' -Config ([PSCustomObject]@{ UseRipgrep = $false }) -MaxResults 10
+    Assert-True -Condition ($null -eq $disabledRipgrepResult) -Message 'Ripgrep acceleration should be optional and disabled by config.'
+
     $backgroundIndexPath = Join-Path -Path (Join-Path -Path $testRoot -ChildPath 'background-data') -ChildPath 'index.json'
     $backgroundCreated = InvokeFileIndexWithProcessingDialog -Owner $null -Title 'Background Smoke Test' -Message 'Indexing in progress, please wait...' -Root $fixtureRoot -Config $config -IndexFilePath $backgroundIndexPath
     Assert-True -Condition $backgroundCreated -Message 'Background indexing helper should return true.'
@@ -356,6 +509,56 @@ try {
 
     $partialTagMatches = @(SearchFileIndex -IndexFilePath $indexPath -Keyword 'alp')
     Assert-True -Condition ($partialTagMatches -contains $samplePath) -Message 'Partial tag search should still find sample.txt.'
+
+    $limitedIndexMatches = @(SearchFileIndex -IndexFilePath $indexPath -Keyword 'txt' -MaxResults 1)
+    Assert-True -Condition (1 -eq $limitedIndexMatches.Count) -Message 'Index search should honor MaxResults while materializing matches.'
+
+    $cacheSearchIndexPath = Join-Path -Path $testRoot -ChildPath 'cache-search-index.json'
+    $firstCacheIndex = [PSCustomObject]@{
+        schemaVersion = 2
+        root = $fixtureRoot
+        createdUtc = [System.DateTime]::UtcNow.ToString('o')
+        documents = @(
+            [PSCustomObject]@{
+                id = 1
+                name = 'cache-first.txt'
+                path = $samplePath
+                sizeInBytes = 1
+                lastModified = [System.DateTime]::UtcNow.ToString('o')
+                lastWriteUtc = [System.DateTime]::UtcNow.ToString('o')
+                tags = @('cachefirst')
+                tagCounts = [ordered]@{ cachefirst = 1 }
+            }
+        )
+        terms = [ordered]@{ cachefirst = @(1) }
+    }
+    $firstCacheIndex | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $cacheSearchIndexPath
+    $firstCacheMatches = @(SearchFileIndex -IndexFilePath $cacheSearchIndexPath -Keyword 'cachefirst')
+    Assert-True -Condition ($firstCacheMatches -contains $samplePath) -Message 'Cached index search should find the first index version.'
+
+    $secondCacheIndex = [PSCustomObject]@{
+        schemaVersion = 2
+        root = $fixtureRoot
+        createdUtc = [System.DateTime]::UtcNow.ToString('o')
+        documents = @(
+            [PSCustomObject]@{
+                id = 2
+                name = 'cache-second-updated.txt'
+                path = $largeTextPath
+                sizeInBytes = 2
+                lastModified = [System.DateTime]::UtcNow.ToString('o')
+                lastWriteUtc = [System.DateTime]::UtcNow.ToString('o')
+                tags = @('cachesecondupdated')
+                tagCounts = [ordered]@{ cachesecondupdated = 2 }
+            }
+        )
+        terms = [ordered]@{ cachesecondupdated = @(2) }
+    }
+    $secondCacheIndex | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $cacheSearchIndexPath
+    $staleCacheMatches = @(SearchFileIndex -IndexFilePath $cacheSearchIndexPath -Keyword 'cachefirst')
+    Assert-True -Condition (0 -eq $staleCacheMatches.Count) -Message 'Index cache should invalidate after the index file changes.'
+    $freshCacheMatches = @(SearchFileIndex -IndexFilePath $cacheSearchIndexPath -Keyword 'cachesecondupdated')
+    Assert-True -Condition ($freshCacheMatches -contains $largeTextPath) -Message 'Index cache should return fresh data after invalidation.'
 
     $ignoredMatches = @(SearchFileIndex -IndexFilePath $indexPath -Keyword 'ignored')
     Assert-True -Condition (0 -eq $ignoredMatches.Count) -Message 'Ignored file should not be searchable.'

@@ -42,3 +42,9 @@ All material changes to rules inside `.adc/` should be reviewed as ADC amendment
 - 2026-06-17: Updated QS project context to version 1.4.32 so preview highlights render active search keywords with both highlight background and bold weight.
 - 2026-06-17: Updated QS project context to version 1.4.33 so Live Content Scan filters candidate files through runtime allowed/ignored settings and stops reading a file after the first simple match.
 - 2026-06-17: Updated QS project context to version 1.4.34 for archiving legacy payload, ZIP/Base64, and UltraTransfer helpers under `src/tools/` and removing the default release/split-transfer workflow from active guidance.
+- 2026-06-17: Updated QS project context to version 1.4.35 for bounded Live Content Scan settings, TEAM index candidate reuse, ALL scan scope selection, stronger ignored defaults, ignored-folder traversal pruning, and optional ripgrep acceleration with fallback.
+- 2026-06-17: Updated QS project context to version 1.4.36 for the unified Index popup that owns TEAM index settings and `Re-Index Team Folder`.
+- 2026-06-17: Updated QS project context to version 1.4.37 so global ignored/search policy defaults live in `src/settings/config.json` and profile files avoid duplicating those defaults unless intentionally overriding them.
+- 2026-06-17: Updated QS project context to version 1.4.38 for process-local TEAM quick index JSON caching, single-pass schema v2 result materialization, and reusable index timestamp normalization.
+- 2026-06-17: Updated QS project context to version 1.4.39 for moving the top `Status` controls 10px left in the Windows Forms UI.
+- 2026-06-17: Updated QS project context to version 1.4.40 for simplifying README into a concise user guide.

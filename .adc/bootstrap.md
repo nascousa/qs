@@ -75,18 +75,17 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File .\tests\smoke-payload.ps1
 5. Open `Settings`, confirm `default.profile.json` is selected by default, choose another available profile if needed, and apply it.
 6. Select a drive letter that is actually mapped on the machine.
 7. Run one filename search against a small folder or test fixture first.
-8. Use `Re-Index Team Folder` on a small accessible TEAM folder and confirm the indexing popup shows stage, file counts, reused count, current file name, elapsed time, and a Cancel button before `src/data/index.json` is regenerated.
-9. Open `TagManager`, confirm the settings popup shows TEAM path, top words per file, ignored filenames, allowed extensions, ignored extensions, and ignored folders.
-10. Use TagManager `Rebuild Index` on a small accessible TEAM folder and confirm the indexing progress popup appears.
-11. Save settings only when the displayed path and ignore lists are intended.
-12. Run one TEAM quick search that matches a filename or generated tag.
-13. Confirm the preview pane is collapsed before a file is selected and the results list uses the available width.
-14. Select a plaintext result and confirm the preview pane auto-expands without freezing the UI.
-15. Use `Hide Preview` and `Show Preview` to confirm manual preview toggling works.
-16. Select a Markdown result and confirm headings, lists, quotes, code, bold, and italic text render in the preview pane.
-17. Select an HTML result, or a Markdown result that contains HTML tags, and confirm it renders in the preview pane.
-18. Run a search, select a matching result whose file body contains the search keyword, and confirm the keyword is highlighted in the preview pane.
-19. Open a selected file only when the target path is expected.
+8. Open `Index`, confirm the settings popup shows TEAM path, top words per file, ignored filenames, allowed extensions, ignored extensions, and ignored folders.
+9. Use Index `Re-Index Team Folder` on a small accessible TEAM folder and confirm the indexing popup shows stage, file counts, reused count, current file name, elapsed time, and a Cancel button before `src/data/index.json` is regenerated.
+10. Save settings only when the displayed path and ignore lists are intended.
+11. Run one TEAM quick search that matches a filename or generated tag.
+12. Confirm the preview pane is collapsed before a file is selected and the results list uses the available width.
+13. Select a plaintext result and confirm the preview pane auto-expands without freezing the UI.
+14. Use `Hide Preview` and `Show Preview` to confirm manual preview toggling works.
+15. Select a Markdown result and confirm headings, lists, quotes, code, bold, and italic text render in the preview pane.
+16. Select an HTML result, or a Markdown result that contains HTML tags, and confirm it renders in the preview pane.
+17. Run a search, select a matching result whose file body contains the search keyword, and confirm the keyword is highlighted in the preview pane.
+18. Open a selected file only when the target path is expected.
 
 ## ContextGraph Services Integration
 

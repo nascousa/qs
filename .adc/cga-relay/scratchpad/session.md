@@ -141,6 +141,33 @@ Use this file for task handoff notes, progress, validation evidence, blockers, r
 - Updated README and ADC guidance so QS no longer treats release payload generation or 25000-character split-transfer packaging as an active default workflow.
 - Validation passed for QS 1.4.34 with recursive PowerShell parse checks for `src/`, JSON parse checks for settings/profiles, moved-path checks, `tests/smoke-index.ps1`, `tests/smoke-text-transfer.ps1`, `tests/smoke-ultra-transfer.ps1`, `tests/smoke-payload.ps1`, and clean VS Code diagnostics.
 - No release payload or split-transfer artifact was generated for QS 1.4.34.
+- Updated QS to 1.4.35 with bounded Live Content Scan settings, TEAM index candidate reuse, a `Scope` selector for ALL live scans, expanded ignored folders/extensions, ignored-folder traversal pruning, and optional ripgrep acceleration with PowerShell fallback.
+- Updated `tests/smoke-index.ps1`, README, and ADC metadata for the Live Content Scan optimization behavior.
+- Validation passed for QS 1.4.35 with recursive PowerShell parse checks for `src/`, JSON parse checks for settings/profiles/sample index, `src/QuickSearch.vbs` execution with `QS_SKIP_AUTORUN=1`, `tests/smoke-index.ps1`, and clean VS Code diagnostics.
+- No release payload or split-transfer artifact was generated for QS 1.4.35.
+- Updated QS to 1.4.36 by renaming the main-window `TagManager` entry to `Index` and moving the `Re-Index Team Folder` action into the Index settings popup.
+- Updated README, ADC metadata, bootstrap checks, terminology, planning status, and diagrams for the unified Index popup behavior.
+- Validation passed for QS 1.4.36 with recursive PowerShell parse checks for `src/`, JSON parse checks for settings/profiles/sample index, `tests/smoke-index.ps1`, and clean VS Code diagnostics on changed files.
+- No release payload or split-transfer artifact was generated for QS 1.4.36.
+- CGA incremental indexing could not be queued because the local MCP endpoint rejected the connection with a missing or invalid CRYSTALS communication profile.
+- Updated QS to 1.4.37 by removing duplicated ignored-folder defaults from `src/profiles/default.profile.json` and `src/profiles/nate.profile.json`; global ignored/search policy now remains in `src/settings/config.json` unless a profile intentionally overrides it.
+- Updated README, ADC metadata, and `tests/smoke-index.ps1` for profile/config policy separation.
+- Validation passed for QS 1.4.37 with recursive PowerShell parse checks for `src/`, JSON parse checks for settings/profiles/sample index, `src/QuickSearch.vbs` execution with `QS_SKIP_AUTORUN=1`, and `tests/smoke-index.ps1`.
+- No release payload or split-transfer artifact was generated for QS 1.4.37.
+- Updated QS to 1.4.38 with process-local parsed JSON caching for TEAM quick index searches, shared cached reads for TEAM live-scan index candidates, single-pass schema v2 result materialization after term lookup, and UTC tick normalization for reusable index metadata timestamps parsed from JSON.
+- Updated `tests/smoke-index.ps1`, README, and ADC metadata for the index-backed quick search cache behavior.
+- Validation passed for QS 1.4.38 with recursive PowerShell parse checks for `src/`, JSON parse checks for settings/profiles/sample index, `src/QuickSearch.vbs` execution with `QS_SKIP_AUTORUN=1`, and `tests/smoke-index.ps1`.
+- No release payload or split-transfer artifact was generated for QS 1.4.38.
+- CGA incremental indexing could not be queued through either configured MCP endpoint because the local server rejected the connection with `Missing or invalid CRYSTALS communication profile`.
+- Updated QS to 1.4.39 by moving the top `Status` label and status textbox 10px left in the Windows Forms UI.
+- Updated README, ADC metadata, and `tests/smoke-index.ps1` for QS 1.4.39.
+- Validation passed for QS 1.4.39 with recursive PowerShell parse checks for `src/`, JSON parse checks for settings/profiles/sample index, and `tests/smoke-index.ps1`.
+- No release payload or split-transfer artifact was generated for QS 1.4.39.
+- CGA incremental indexing for QS 1.4.39 could not be queued because the local MCP endpoint rejected the connection with `Missing or invalid CRYSTALS communication profile`.
+- Updated QS to 1.4.40 by rewriting README as a shorter, easier user guide and aligning version metadata.
+- Validation passed for QS 1.4.40 with recursive PowerShell parse checks for `src/`, JSON parse checks for settings/profiles/sample index, and `tests/smoke-index.ps1`.
+- No release payload or split-transfer artifact was generated for QS 1.4.40.
+- CGA incremental indexing for QS 1.4.40 could not be queued because the local MCP endpoint rejected the connection with `Missing or invalid CRYSTALS communication profile`.
 - Updated QS to 1.4.27 so Search button work runs through `InvokeQuickSearchWithProcessingDialog` in a background PowerShell job instead of blocking the Windows Forms UI thread.
 - Added `src/QuickSearch.Search.ps1` as a pure filesystem search helper used by both the UI path and the background search job.
 - Updated result population to batch ListBox updates with `BeginUpdate`/`AddRange`/`EndUpdate` and to log only the result count instead of writing the full result set for every item.

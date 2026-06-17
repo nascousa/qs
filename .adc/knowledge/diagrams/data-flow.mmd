@@ -22,6 +22,7 @@ flowchart TD
   MarkdownRtf --> Preview[Preview content]
   PlainText --> Preview
   Results --> OpenSelected[Start-Process selected file]
-  RenderUI --> Reindex[Re-index team folder]
+  RenderUI --> IndexPopup[Index popup]
+  IndexPopup --> Reindex[Re-index team folder]
   Reindex --> TagExtraction[Read files and extract top English words]
   TagExtraction --> RootIndex

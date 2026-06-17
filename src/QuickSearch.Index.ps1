@@ -45,6 +45,48 @@ Function GetWildcardContainsPattern {
 }
 
 
+Function GetFileIndexCache {
+    $cacheVariable = Get-Variable -Name 'QuickSearchFileIndexCache' -Scope Script -ErrorAction SilentlyContinue
+    if ($null -eq $cacheVariable -or $null -eq $cacheVariable.Value) {
+        $script:QuickSearchFileIndexCache = @{}
+    }
+
+    return $script:QuickSearchFileIndexCache
+}
+
+
+Function ReadCachedFileIndexData {
+    param(
+        [string]$IndexFilePath
+    )
+
+    if ([string]::IsNullOrWhiteSpace($IndexFilePath) -or -not (Test-Path -LiteralPath $IndexFilePath -PathType Leaf)) {
+        return $null
+    }
+
+    $indexFile = Get-Item -LiteralPath $IndexFilePath -ErrorAction Stop
+    $cacheKey = $indexFile.FullName.ToLowerInvariant()
+    $cache = GetFileIndexCache
+    $cacheEntry = $null
+    if ($cache.ContainsKey($cacheKey)) {
+        $cacheEntry = $cache[$cacheKey]
+    }
+
+    if ($null -ne $cacheEntry -and $cacheEntry.Length -eq $indexFile.Length -and $cacheEntry.LastWriteUtcTicks -eq $indexFile.LastWriteTimeUtc.Ticks) {
+        return $cacheEntry.Data
+    }
+
+    $indexData = Get-Content -LiteralPath $indexFile.FullName -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+    $cache[$cacheKey] = [PSCustomObject]@{
+        Length = $indexFile.Length
+        LastWriteUtcTicks = $indexFile.LastWriteTimeUtc.Ticks
+        Data = $indexData
+    }
+
+    return $indexData
+}
+
+
 Function TestEnglishWord {
     param(
         [string]$Value
@@ -343,6 +385,33 @@ Function GetReusableFileIndexDocumentsByPath {
 }
 
 
+Function ConvertFileIndexTimestampToUtcTicks {
+    param(
+        [object]$Value
+    )
+
+    if ($null -eq $Value) {
+        return $null
+    }
+
+    if ($Value -is [datetime]) {
+        return $Value.ToUniversalTime().Ticks
+    }
+
+    $timestampText = [string]$Value
+    if ([string]::IsNullOrWhiteSpace($timestampText)) {
+        return $null
+    }
+
+    $timestamp = [datetime]::MinValue
+    if ([datetime]::TryParse($timestampText, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::RoundtripKind, [ref]$timestamp)) {
+        return $timestamp.ToUniversalTime().Ticks
+    }
+
+    return $null
+}
+
+
 Function TestReusableFileIndexDocument {
     param(
         [object]$Document,
@@ -359,15 +428,15 @@ Function TestReusableFileIndexDocument {
         return $false
     }
 
-    $currentLastModified = $File.LastWriteTime.ToString('o')
-    $indexedLastModified = [string](GetFileIndexPropertyValue -Value $Document -Name 'lastModified')
-    if (-not [string]::IsNullOrWhiteSpace($indexedLastModified) -and $indexedLastModified -eq $currentLastModified) {
+    $currentLastModifiedTicks = $File.LastWriteTime.ToUniversalTime().Ticks
+    $indexedLastModifiedTicks = ConvertFileIndexTimestampToUtcTicks -Value (GetFileIndexPropertyValue -Value $Document -Name 'lastModified')
+    if ($null -ne $indexedLastModifiedTicks -and [int64]$indexedLastModifiedTicks -eq $currentLastModifiedTicks) {
         return $true
     }
 
-    $currentLastWriteUtc = $File.LastWriteTimeUtc.ToString('o')
-    $indexedLastWriteUtc = [string](GetFileIndexPropertyValue -Value $Document -Name 'lastWriteUtc')
-    return (-not [string]::IsNullOrWhiteSpace($indexedLastWriteUtc) -and $indexedLastWriteUtc -eq $currentLastWriteUtc)
+    $currentLastWriteUtcTicks = $File.LastWriteTimeUtc.Ticks
+    $indexedLastWriteUtcTicks = ConvertFileIndexTimestampToUtcTicks -Value (GetFileIndexPropertyValue -Value $Document -Name 'lastWriteUtc')
+    return ($null -ne $indexedLastWriteUtcTicks -and [int64]$indexedLastWriteUtcTicks -eq $currentLastWriteUtcTicks)
 }
 
 
@@ -490,6 +559,10 @@ Function GetFileIndexTermDocumentIdSet {
 
     $termPattern = GetWildcardContainsPattern $normalizedTerm
     foreach ($property in @(GetFileIndexTermProperties -Terms $Terms)) {
+        if ([string]$property.Name -eq $normalizedTerm) {
+            continue
+        }
+
         if ($property.Name -like $termPattern) {
             AddStringSetValues -Set $documentIds -Values $property.Value
         }
@@ -502,7 +575,8 @@ Function GetFileIndexTermDocumentIdSet {
 Function SearchInvertedFileIndex {
     param(
         [object]$IndexData,
-        [string]$Keyword
+        [string]$Keyword,
+        [int]$MaxResults = 0
     )
 
     $documents = @((GetFileIndexPropertyValue -Value $IndexData -Name 'documents'))
@@ -531,6 +605,8 @@ Function SearchInvertedFileIndex {
     }
 
     $keywordPattern = GetWildcardContainsPattern $Keyword
+    $matchedPaths = New-Object System.Collections.ArrayList
+    $seenPaths = @{}
     foreach ($document in $documents) {
         $documentId = [string](GetFileIndexPropertyValue -Value $document -Name 'id')
         $documentName = [string](GetFileIndexPropertyValue -Value $document -Name 'name')
@@ -546,24 +622,17 @@ Function SearchInvertedFileIndex {
         if ($documentName -like $keywordPattern -or $documentPath -like $keywordPattern) {
             AddStringSetValue -Set $candidateIds -Value $documentId
         }
-    }
 
-    $matchedPaths = New-Object System.Collections.ArrayList
-    $seenPaths = @{}
-    foreach ($document in $documents) {
-        $documentId = [string](GetFileIndexPropertyValue -Value $document -Name 'id')
         if (-not $candidateIds.ContainsKey($documentId)) {
             continue
-        }
-
-        $documentPath = [string](GetFileIndexPropertyValue -Value $document -Name 'path')
-        if ([string]::IsNullOrWhiteSpace($documentPath)) {
-            $documentPath = [string](GetFileIndexPropertyValue -Value $document -Name 'FilePath')
         }
 
         if (-not [string]::IsNullOrWhiteSpace($documentPath) -and -not $seenPaths.ContainsKey($documentPath)) {
             $seenPaths[$documentPath] = $true
             [void]$matchedPaths.Add($documentPath)
+            if ($MaxResults -gt 0 -and $matchedPaths.Count -ge $MaxResults) {
+                break
+            }
         }
     }
 
@@ -574,7 +643,8 @@ Function SearchInvertedFileIndex {
 Function SearchLegacyFileIndex {
     param(
         [object[]]$IndexItems,
-        [string]$Keyword
+        [string]$Keyword,
+        [int]$MaxResults = 0
     )
 
     $keywordPattern = GetWildcardContainsPattern $Keyword
@@ -619,6 +689,9 @@ Function SearchLegacyFileIndex {
         if ($itemName -like $keywordPattern -or $itemPath -like $keywordPattern -or $matchesTag) {
             if (-not $matchedPaths.Contains($itemPath)) {
                 [void]$matchedPaths.Add($itemPath)
+                if ($MaxResults -gt 0 -and $matchedPaths.Count -ge $MaxResults) {
+                    break
+                }
             }
         }
     }
@@ -630,7 +703,8 @@ Function SearchLegacyFileIndex {
 Function SearchFileIndex {
     param(
         [string]$IndexFilePath,
-        [string]$Keyword
+        [string]$Keyword,
+        [int]$MaxResults = 0
     )
 
     if ([string]::IsNullOrWhiteSpace($Keyword) -or -not (Test-Path -LiteralPath $IndexFilePath)) {
@@ -638,19 +712,23 @@ Function SearchFileIndex {
     }
 
     try {
-        $indexData = Get-Content -LiteralPath $IndexFilePath -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+        $indexData = ReadCachedFileIndexData -IndexFilePath $IndexFilePath
     }
     catch {
         Write-Host "Unable to read index file: $IndexFilePath" -ForegroundColor Red
         return @()
     }
 
-    $schemaVersion = GetFileIndexPropertyValue -Value $indexData -Name 'schemaVersion'
-    if ($schemaVersion -eq 2) {
-        return SearchInvertedFileIndex -IndexData $indexData -Keyword $Keyword
+    if ($null -eq $indexData) {
+        return @()
     }
 
-    return SearchLegacyFileIndex -IndexItems @($indexData) -Keyword $Keyword
+    $schemaVersion = GetFileIndexPropertyValue -Value $indexData -Name 'schemaVersion'
+    if ($schemaVersion -eq 2) {
+        return SearchInvertedFileIndex -IndexData $indexData -Keyword $Keyword -MaxResults $MaxResults
+    }
+
+    return SearchLegacyFileIndex -IndexItems @($indexData) -Keyword $Keyword -MaxResults $MaxResults
 }
 
 

@@ -2,18 +2,17 @@ flowchart LR
   User[Windows user] --> SearchUI[src/QuickSearch.ps1 Windows Forms UI]
   SearchUI --> Support[src/QuickSearch.Support.ps1 support functions]
   SearchUI --> Config[src/settings/config.json and src/profiles/*.profile.json]
-  SearchUI --> TagManagerUi[TagManager settings popup]
-  Support --> TagManagerUi
-  TagManagerUi --> Config
+  SearchUI --> IndexSettingsUi[Index settings popup]
+  Support --> IndexSettingsUi
+  IndexSettingsUi --> Config
   SearchUI --> TsgDrive[Mapped drive: Orcas_Main TSG-SOP]
   SearchUI --> TeamDrive[Mapped drive: Orcas_Main team]
   SearchUI --> Preview[RichTextBox and WebBrowser preview]
   SearchUI --> ShellOpen[Start-Process selected file]
-  SearchUI --> Indexer[CreateFileIndex]
-  TagManagerUi --> Indexer
+  IndexSettingsUi --> Indexer[CreateFileIndex]
   Support --> IndexModule[src/QuickSearch.Index.ps1]
   IndexModule --> Indexer
-  Indexer --> TagExtractor[GetTopWords integrated TagManager logic]
+  Indexer --> TagExtractor[GetTopWords integrated index tag extraction]
   TagExtractor --> GeneratedIndex[src/data/index.json documents terms]
   GeneratedIndex --> SearchUI
   ADC[.adc project context] --> Agents[AI assistants and maintainers]

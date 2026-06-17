@@ -131,16 +131,40 @@ Function GUI()
         
     # TextBox_Keyword
     $TextBox_Keyword = New-Object System.Windows.Forms.TextBox
-    $TextBox_Keyword.Location = New-Object System.Drawing.Point(515, 10)
-    $TextBox_Keyword.Width = 140
+    $TextBox_Keyword.Location = New-Object System.Drawing.Point(680, 10)
+    $TextBox_Keyword.Width = 120
     InitializeQuickSearchKeywordPlaceholder -TextBox $TextBox_Keyword -Placeholder 'keyword'
     $main_form.Controls.Add($TextBox_Keyword)
+
+    # Label_LiveScanScope
+    $Label_LiveScanScope = New-Object System.Windows.Forms.Label
+    $Label_LiveScanScope.Text = 'Scope'
+    $Label_LiveScanScope.Location = New-Object System.Drawing.Point(515, 10)
+    $Label_LiveScanScope.Width = 40
+    $main_form.Controls.Add($Label_LiveScanScope)
+
+    # ComboBox_LiveScanScope
+    $ComboBox_LiveScanScope = New-Object System.Windows.Forms.ComboBox
+    $ComboBox_LiveScanScope.Location = New-Object System.Drawing.Point(555, 10)
+    $ComboBox_LiveScanScope.Width = 115
+    $ComboBox_LiveScanScope.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
+    [void]$ComboBox_LiveScanScope.Items.Add('Configured Types')
+    [void]$ComboBox_LiveScanScope.Items.Add('All')
+    $configuredLiveScope = [string](GetQuickSearchSearchConfigValue -Config $config -Name 'LiveContentScanScope' -DefaultValue 'Configured Types')
+    if ($ComboBox_LiveScanScope.Items.Contains($configuredLiveScope)) {
+        $ComboBox_LiveScanScope.SelectedItem = $configuredLiveScope
+    }
+    else {
+        $ComboBox_LiveScanScope.SelectedItem = 'Configured Types'
+    }
+    $ComboBox_LiveScanScope.Enabled = $false
+    $main_form.Controls.Add($ComboBox_LiveScanScope)
     
     # Button_Search
     $Button_Search = New-Object System.Windows.Forms.Button
     $Button_Search.Text = 'Search'
-    $Button_Search.Location = New-Object System.Drawing.Point(665, 10)
-    $Button_Search.Width = 80
+    $Button_Search.Location = New-Object System.Drawing.Point(810, 10)
+    $Button_Search.Width = 75
     $Button_Search.Height = 20
     $main_form.Controls.Add($Button_Search)
     $main_form.AcceptButton = $Button_Search
@@ -151,22 +175,11 @@ Function GUI()
 
     # Button_Index
     $Button_Index = New-Object System.Windows.Forms.Button
-    $Button_Index.Text = 'Re-Index Team Folder'
-    $Button_Index.Location = New-Object System.Drawing.Point(755, 10)
-    $Button_Index.Width = 150
+    $Button_Index.Text = 'Index'
+    $Button_Index.Location = New-Object System.Drawing.Point(895, 10)
+    $Button_Index.Width = 75
     $Button_Index.Height = 20
     $main_form.Controls.Add($Button_Index)
-    # --------------------------------------------------------------------------------
-
-
-    # --------------------------------------------------------------------------------
-    # Button_TagManager
-    $Button_TagManager = New-Object System.Windows.Forms.Button
-    $Button_TagManager.Text = 'TagManager'
-    $Button_TagManager.Location = New-Object System.Drawing.Point(915, 10)
-    $Button_TagManager.Width = 105
-    $Button_TagManager.Height = 20
-    $main_form.Controls.Add($Button_TagManager)
     # --------------------------------------------------------------------------------
 
 
@@ -174,8 +187,8 @@ Function GUI()
     # Button_PreviewToggle
     $Button_PreviewToggle = New-Object System.Windows.Forms.Button
     $Button_PreviewToggle.Text = 'Show Preview'
-    $Button_PreviewToggle.Location = New-Object System.Drawing.Point(1030, 10)
-    $Button_PreviewToggle.Width = 110
+    $Button_PreviewToggle.Location = New-Object System.Drawing.Point(980, 10)
+    $Button_PreviewToggle.Width = 105
     $Button_PreviewToggle.Height = 20
     $main_form.Controls.Add($Button_PreviewToggle)
     # --------------------------------------------------------------------------------
@@ -185,8 +198,8 @@ Function GUI()
     # Button_Settings
     $Button_Settings = New-Object System.Windows.Forms.Button
     $Button_Settings.Text = 'Settings'
-    $Button_Settings.Location = New-Object System.Drawing.Point(1150, 10)
-    $Button_Settings.Width = 80
+    $Button_Settings.Location = New-Object System.Drawing.Point(1095, 10)
+    $Button_Settings.Width = 75
     $Button_Settings.Height = 20
     $main_form.Controls.Add($Button_Settings)
     # --------------------------------------------------------------------------------
@@ -196,15 +209,15 @@ Function GUI()
     # Label_Status
     $Label_Status = New-Object System.Windows.Forms.Label
     $Label_Status.Text = 'Status'
-    $Label_Status.Location = New-Object System.Drawing.Point($($config.Width - 165), 10)
+    $Label_Status.Location = New-Object System.Drawing.Point($($config.Width - 142), 10)
     $Label_Status.AutoSize = $true
     $main_form.Controls.Add($Label_Status)
 
     # TextBox_Status
     $TextBox_Status = New-Object System.Windows.Forms.TextBox
     $TextBox_Status.Text = 'none'
-    $TextBox_Status.Location = New-Object System.Drawing.Point($($config.Width - 125), 10)
-    $TextBox_Status.Width = 100
+    $TextBox_Status.Location = New-Object System.Drawing.Point($($config.Width - 100), 10)
+    $TextBox_Status.Width = 85
     $TextBox_Status.AutoSize = $true
     $TextBox_Status.ReadOnly = $true
     $main_form.Controls.Add($TextBox_Status)
@@ -251,6 +264,12 @@ Function GUI()
         Keyword = ''
         ContentSearch = $false
     }
+    $updateLiveScanScopeState = {
+        $ComboBox_LiveScanScope.Enabled = $RadioButton_SearchMethod2.Checked
+    }
+    $RadioButton_SearchMethod1.Add_CheckedChanged($updateLiveScanScopeState)
+    $RadioButton_SearchMethod2.Add_CheckedChanged($updateLiveScanScopeState)
+    & $updateLiveScanScopeState
     SetQuickSearchPreviewPanelState -Form $main_form -ResultsListBox $ListBox_Results -PreviewHost $PreviewHost -PreviewButton $Button_PreviewToggle -Expanded $PreviewState.Expanded
     # --------------------------------------------------------------------------------
 
@@ -344,7 +363,7 @@ Function GUI()
         if ($useIndex) {
             Write-Host "IndexFile: $IndexFile"
             if (-not (Test-Path -LiteralPath $IndexFile)) {
-                [void]$ListBox_Results.Items.Add('Team index not found. Re-index Team Folder first.')
+                [void]$ListBox_Results.Items.Add('Team index not found. Open Index and run Re-Index Team Folder first.')
                 $TextBox_Status.Text = 'Index not found'
                 $TextBox_TargetFilePath.Text = 'Index not found'
                 return
@@ -361,7 +380,7 @@ Function GUI()
 
         $Button_Search.Enabled = $false
         try {
-            $searchResult = InvokeQuickSearchWithProcessingDialog -Owner $main_form -Title 'Search' -Message $searchMessage -Root $path -Keyword $keyword -SearchContent $searchContent -UseIndex $useIndex -IndexFilePath $IndexFile -Config $config
+            $searchResult = InvokeQuickSearchWithProcessingDialog -Owner $main_form -Title 'Search' -Message $searchMessage -Root $path -Keyword $keyword -SearchContent $searchContent -UseIndex $useIndex -IndexFilePath $IndexFile -Config $config -SelectedType $selectedType -ScanScope $ComboBox_LiveScanScope.Text
             if ($searchResult.Canceled) {
                 [void]$ListBox_Results.Items.Add('Search canceled.')
                 $TextBox_Status.Text = 'Canceled'
@@ -406,45 +425,7 @@ Function GUI()
     # Button_Index Add_Click event handler
     # --------------------------------------------------------------------------------
     $Button_Index.Add_Click({
-        $TextBox_Status.Text = "Re-Indexing..."
-
-        $teamPathTemplate = GetTeamPathTemplate $config
-        $path = ResolveConfiguredPath -DriveLetter $ComboBox_DriveLetter.Text -PathTemplate $teamPathTemplate
-        Write-Host "IndexPath: $path"
-
-        if (-not (Test-Path -LiteralPath $path)) {
-            [System.Windows.Forms.MessageBox]::Show("Team folder cannot be found: $path", 'Path Not Found')
-            $TextBox_Status.Text = 'Path not found'
-            return
-        }
-
-        Write-Host "Re-Indexing...`n" -ForegroundColor Yellow
-        $Button_Index.Enabled = $false
-        $Button_TagManager.Enabled = $false
-        try {
-            $created = InvokeFileIndexWithProcessingDialog -Owner $main_form -Title 'Index Team Folder' -Message 'Indexing in progress, this may take up to 10 minutes, please wait...' -Root $path -Config $config -IndexFilePath $IndexFilePath
-        }
-        finally {
-            $Button_Index.Enabled = $true
-            $Button_TagManager.Enabled = $true
-        }
-
-        if ($created) {
-            $TextBox_Status.Text = "completed"
-            [System.Windows.Forms.MessageBox]::Show('Indexing completed.', 'Index Team Folder') | Out-Null
-        }
-        else {
-            $TextBox_Status.Text = "failed"
-            [System.Windows.Forms.MessageBox]::Show('Indexing failed.', 'Index Team Folder') | Out-Null
-        }
-    })
-
-
-    # --------------------------------------------------------------------------------
-    # Button_TagManager Add_Click event handler
-    # --------------------------------------------------------------------------------
-    $Button_TagManager.Add_Click({
-        ShowTagManagerSettings -Owner $main_form -Config $config -ConfigPath $ConfigPath -IndexFilePath $IndexFilePath -DriveLetter $ComboBox_DriveLetter.Text
+        ShowIndexSettings -Owner $main_form -Config $config -ConfigPath $ConfigPath -IndexFilePath $IndexFilePath -DriveLetter $ComboBox_DriveLetter.Text
     })
 
 

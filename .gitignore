@@ -1,0 +1,41 @@
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+
+# Runtime and generated data
+tmp/
+logs/
+*.log
+*.tmp
+*.bak
+*.swp
+index.json
+src/data/index.json
+TagManager/index.json
+
+# PowerShell and test output
+TestResults/
+coverage/
+*.trx
+*.xml
+
+# ADC operational scratch space
+.adc/cga-relay/scratchpad/*
+!.adc/cga-relay/scratchpad/session.md
+.adc/cga-relay/tasks/in-progress/*
+!.adc/cga-relay/tasks/in-progress/.gitkeep
+.adc/cga-relay/tasks/done/*
+!.adc/cga-relay/tasks/done/.gitkeep
+
+# Editor and OS noise
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+release/

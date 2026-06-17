@@ -1,0 +1,189 @@
+# QS Session Scratchpad
+
+Use this file for task handoff notes, progress, validation evidence, blockers, risks, and CGA-Relay activity summaries. Do not store secrets or raw tokens here.
+
+## 2026-06-15
+
+- ADC 1.1.27 onboarding added for QuickSearch (QS).
+- Current project is a Windows PowerShell desktop utility with main entry `src/QuickSearch.ps1`.
+- Existing PowerShell scripts were documented but not modified.
+- ContextGraph credentials were not written to tracked files. Use environment variables when CGA registration is available.
+
+## 2026-06-16
+
+- Cleaned duplicated ADC onboarding content and aligned README/ADC metadata to QS version 1.0.1.
+- Aligned ADC documentation with the current `src/QuickSearch.ps1` layout.
+- No QS runtime script behavior was changed.
+- Validation passed with required ADC files present, JSON parse checks, and `src/QuickSearch.ps1` parse-only check.
+- CGA-Relay activity recording was attempted against both configured CGA MCP endpoints, but both failed with `Missing or invalid CRYSTALS communication profile`; no official CGA activity record was created in this session.
+- Merged TagManager-style top-word extraction into `src/QuickSearch.ps1`; TEAM re-index now writes file metadata, `tags`, and `tagCounts` to `src/data/index.json`.
+- Normalized `src/settings/config.json` so tag indexing settings are canonical QS config fields instead of embedded generated word-frequency data.
+- TEAM quick search now reads `src/data/index.json` and matches filenames, paths, and generated tags.
+- Validation passed after the merge with PowerShell parse-only checks and JSON parse checks for `src/settings/config.json` and `src/profiles/profile.json`.
+- Post-change CGA-Relay activity recording was attempted against both configured CGA MCP endpoints, but both still failed with `Missing or invalid CRYSTALS communication profile`; no official CGA activity record was created.
+- Added `tests/smoke-index.ps1` so integrated TEAM indexing can be validated without launching the Windows Forms UI or requiring mapped drives.
+- The smoke test found and fixed a PowerShell case-insensitive variable collision in `CreateFileIndex`; final strict validation passed with parse checks, JSON checks, `tests/smoke-index.ps1`, and clean VS Code diagnostics.
+- Added a `TagManager` button and settings popup to `src/QuickSearch.ps1`; the popup can edit TEAM path, top words per file, ignored filenames, ignored extensions, ignored folders, save `src/settings/config.json`, and rebuild the TEAM index.
+- Validation passed for QS 1.2.0 with PowerShell parse checks, JSON parse checks, `tests/smoke-index.ps1`, and clean VS Code diagnostics after adding the TagManager popup.
+- Added lightweight Markdown rendering for `.md` and `.markdown` previews using RichTextBox RTF; smoke coverage now checks heading, list, quote, inline code, bold, and markdown extension detection.
+- Validation passed for QS 1.3.0 with parse checks, JSON checks, `tests/smoke-index.ps1`, clean VS Code diagnostics, and a real `System.Windows.Forms.RichTextBox` Markdown/plaintext fallback render check.
+- Updated QS to 1.3.1 with a versioned main window title sourced from `.adc/index.md`, widened TagManager settings layout spacing to avoid label/input overlap, and added smoke coverage for version formatting.
+- Updated QS to 1.3.2 so the title bar version was displayed without leading zero padding, for example `QuickSearch v1.3.2`.
+- Updated QS to 1.4.0 with a default-collapsed preview pane, `Show Preview` / `Hide Preview` toggle, auto-expand on file selection, and wider top-row controls so button/radio text displays fully.
+- Validation passed for QS 1.4.0 with PowerShell parse checks, JSON parse checks, `tests/smoke-index.ps1`, collapsible preview layout smoke coverage, and clean VS Code diagnostics.
+- Post-change CGA connectivity was checked after the QS 1.4.0 update, but the configured MCP endpoint still failed with `Missing or invalid CRYSTALS communication profile`; no official CGA activity record was created.
+- First 1.4.0 UI launch surfaced an empty ListBox selection edge case; added `TestExistingLiteralPath` guards for preview/open handlers and smoke coverage for empty selections, then validation passed again.
+- Updated QS to 1.4.1 with an `Indexing in progress, please wait...` processing popup for both main `Re-Index Team Folder` and TagManager `Rebuild Index` actions.
+- Validation passed for QS 1.4.1 with PowerShell parse checks, JSON parse checks, `tests/smoke-index.ps1`, processing dialog smoke coverage, and clean VS Code diagnostics.
+- Repaired `src/QuickSearch.bat` for QS 1.4.2 so it launches `src/QuickSearch.ps1`, checks that the script exists, and no longer references the removed `QuickSearch_UI.ps1` file.
+- Validation passed for QS 1.4.2 with PowerShell parse checks, JSON parse checks, `tests/smoke-index.ps1`, batch launcher target smoke coverage, and clean VS Code diagnostics.
+- Split QS source for 1.4.3 into `src/QuickSearch.ps1` and `src/QuickSearch.Support.ps1`; current character counts are below the requested 25000-character limit for both files.
+- Validation passed for QS 1.4.3 with PowerShell parse checks for both split scripts, JSON parse checks, `tests/smoke-index.ps1`, source character-limit smoke coverage, and clean VS Code diagnostics.
+- Corrected QS to version `v1.4.4` display behavior with unpadded `vX.Y.Z` formatting and patch-first carry semantics.
+- Validation passed for QS 1.4.4 with PowerShell parse checks, JSON parse checks, `tests/smoke-index.ps1`, version formatting/carry smoke coverage, split source character-limit checks, and clean VS Code diagnostics.
+- Added QS 1.4.5 `src/QuickSearch.TextTransfer.ps1`, a standalone ZIP/Base64 utility for text-only transfer with encode and decode/extract modes plus optional intermediate ZIP output.
+- Added `tests/smoke-text-transfer.ps1` covering encode, Base64 ZIP byte equivalence, decode/restore, empty folder preservation, and ZIP path traversal rejection.
+- Validation passed for QS 1.4.5 with PowerShell parse checks, JSON parse checks, `tests/smoke-index.ps1`, `tests/smoke-text-transfer.ps1`, all `QuickSearch*.ps1` source character-limit checks, and clean VS Code diagnostics.
+- Added QS 1.4.7 `src/QuickSearch.Payload.ps1`, a PowerShell 7+ utility for `minify PowerShell source -> UTF-8 -> Brotli -> Base64` payload packaging and decode back to minified source.
+- Added `tests/smoke-payload.ps1` covering parser-based comment removal, string literal preservation, Brotli/Base64 round trips, default-source CLI encode, and CLI decode.
+- Generated `release/1.4.7-payload.txt`; the default QS payload is 8924 Base64 characters after Brotli, compared with 45464 characters for minified UTF-8 Base64 without Brotli.
+- Validation passed for QS 1.4.7 with parse checks for all `QuickSearch*.ps1` scripts, JSON parse checks, `tests/smoke-index.ps1`, `tests/smoke-text-transfer.ps1`, `tests/smoke-payload.ps1`, release payload decode/parse validation, and clean VS Code diagnostics.
+- CGA-Relay indexing/activity recording could not be completed through available tools: local token/project environment variables were set, but no CGA indexing/activity tool was available in the current VS Code tool surface and no CGA URL environment variable was configured. No secrets were printed or written.
+- Generated `release/1.4.8.txt` as the versioned ZIP/Base64 release text artifact from a temporary QS package source that excluded `release`, `tmp`, `logs`, and `.git`.
+- Verified `release/1.4.8.txt` with `src/QuickSearch.TextTransfer.ps1 -Mode Decode`; the decoded package contained `README.md`.
+- Validation passed after release artifact generation with PowerShell parse checks, JSON parse checks, `tests/smoke-index.ps1`, `tests/smoke-text-transfer.ps1`, `tests/smoke-payload.ps1`, and clean VS Code diagnostics.
+- Updated QS 1.4.9 so `src/QuickSearch.TextTransfer.ps1` splits Base64 outputs over 25000 characters into a manifest plus `.partNNN.txt` files and can decode from the manifest.
+- Regenerated the ZIP/Base64 release artifact as `release/1.4.9.txt` plus `release/1.4.9.part001.txt` through `release/1.4.9.part004.txt`; removed the previous oversized `release/1.4.8.txt` artifact.
+- Generated `release/1.4.9-payload.txt` for the matching Brotli/Base64 source payload.
+- Verified all `release/*.txt` files are at or below 25000 characters and verified `release/1.4.9.txt` decodes successfully through the text transfer tool.
+- Validation passed for QS 1.4.9 with PowerShell parse checks, JSON parse checks, `tests/smoke-index.ps1`, `tests/smoke-text-transfer.ps1`, `tests/smoke-payload.ps1`, and clean VS Code diagnostics.
+- Added QS 1.4.8 `src/QuickSearch.Payload.bat`, a double-click launcher that reads the current ADC version and generates `release\<version>-payload.txt` through `src/QuickSearch.Payload.ps1`.
+- Extended `tests/smoke-payload.ps1` to run the batch launcher with pause disabled, verify the launcher-created payload file, and decode it back to the minified default source.
+- Generated `release/1.4.8-payload.txt` through `src/QuickSearch.Payload.bat`; the file is 8952 Base64 characters and remains under the 25000-character target.
+- Validation passed for QS 1.4.8 with parse checks for all `QuickSearch*.ps1` scripts, JSON parse checks, `tests/smoke-index.ps1`, `tests/smoke-text-transfer.ps1`, `tests/smoke-payload.ps1`, batch launcher exit-code check, release payload decode/parse validation, and clean VS Code diagnostics.
+- Added QS 1.4.10 `src/QuickSearch.Index.ps1`, a dependency-free Windows PowerShell TEAM index module that writes schema v2 `documents` plus inverted `terms`, reuses unchanged-file tag metadata by size/timestamp, and keeps legacy index search compatibility.
+- Updated `src/QuickSearch.Support.ps1` to dot-source the index module and removed the older inline index implementation from the support script.
+- Updated `src/QuickSearch.Payload.ps1` and `tests/smoke-payload.ps1` so the default Brotli/Base64 payload includes `src/QuickSearch.Index.ps1`.
+- Extended `tests/smoke-index.ps1` to validate schema v2, inverted term lookups, partial tag search, legacy schema search compatibility, and unchanged-file cached tag reuse.
+- Updated README and ADC docs/diagrams to describe the schema v2 `documents` plus inverted `terms` index and bumped QS metadata to version 1.4.10.
+- Generated `release/1.4.10.txt` plus `release/1.4.10.part001.txt` through `release/1.4.10.part004.txt`; decoded the manifest successfully and verified the restored package contains `README.md` and `src/QuickSearch.Index.ps1`.
+- Generated `release/1.4.10-payload.txt` through `src/QuickSearch.Payload.bat`; the payload is 11272 characters and decoded back to parseable PowerShell source.
+- Validation passed for QS 1.4.10 with parse checks for all `QuickSearch*.ps1` scripts, JSON parse checks, `tests/smoke-index.ps1`, `tests/smoke-text-transfer.ps1`, `tests/smoke-payload.ps1`, release manifest decode validation, and release payload decode/parse validation.
+- CGA-Relay activity recording could not be completed in the current tool surface: no ContextGraph/CGA-Relay indexing or activity recording tool was available after tool discovery. No secrets were printed or written.
+- Added QS 1.4.11 `src/QuickSearch.UltraTransfer.ps1`, a PowerShell 7+ high-compression transfer utility that packs source files into a stored ZIP binary container, Brotli-compresses that binary payload, converts it to Base64 text, and only then applies the 25000-character split limit with the fewest possible files.
+- Added `tests/smoke-ultra-transfer.ps1` covering ultra encode, optional compressed binary output, 25000-character text file limits, comparison against ZIP/Base64 file count, and decode round trips.
+- Generated ultra-compressed release artifacts `release/1.4.11.txt`, `release/1.4.11.part002.txt`, and `release/1.4.11.part003.txt`; decoded `release/1.4.11.txt` successfully and verified the restored package contains `README.md`.
+- Generated matching source payload `release/1.4.11-payload.txt`.
+- Validation passed for QS 1.4.11 with parse checks for all `QuickSearch*.ps1` scripts, JSON parse checks, `tests/smoke-index.ps1`, `tests/smoke-text-transfer.ps1`, `tests/smoke-ultra-transfer.ps1`, `tests/smoke-payload.ps1`, release text size checks, source script size checks, and clean VS Code diagnostics.
+- Updated QS 1.4.12 documentation and ADC rules so the default outgoing release artifact is only the lightweight `release/<project-version>-payload.txt` source payload.
+- Full-package TextTransfer and UltraTransfer outputs are now documented as optional manual transfer utilities, not default release files.
+- Updated QS 1.4.13 `src/QuickSearch.Index.ps1` so `GetTopWords` streams target files through a bounded buffer, skips oversized delimiterless tokens, and no longer uses full-file `Get-Content -Raw` plus `$content -split '\W+'` during index rebuilds.
+- Extended `tests/smoke-index.ps1` with source assertions against full-file split indexing plus streaming regression coverage for repeated words and oversized delimiterless tokens.
+- Updated `src/QuickSearch.TextTransfer.ps1` and `src/QuickSearch.UltraTransfer.ps1` so omitted `-OutputPath` writes optional transfer outputs under `tmp\transfer\` instead of `release\`.
+- Updated QS 1.4.14 by replacing the generic `src/QuickSearch.Payload.bat` with explicit `src/QuickSearch.Payload.Encode.bat` and `src/QuickSearch.Payload.Decode.bat` launchers.
+- Extended `tests/smoke-payload.ps1` to validate both batch launchers with non-interactive encode and decode output paths.
+- Validation passed for QS 1.4.14 with PowerShell parse checks, current `src` JSON parse checks, `tests/smoke-index.ps1`, `tests/smoke-text-transfer.ps1`, `tests/smoke-ultra-transfer.ps1`, `tests/smoke-payload.ps1`, release-only payload checks, and decoded payload parse validation.
+- Generated matching lightweight source payload `release/1.4.14-payload.txt`; the payload is 11724 characters and remains under the 25000-character transfer target.
+- Validation passed for QS 1.4.13 with parse checks for all `QuickSearch*.ps1` scripts, JSON parse checks, `tests/smoke-index.ps1`, `tests/smoke-text-transfer.ps1`, `tests/smoke-ultra-transfer.ps1`, and `tests/smoke-payload.ps1`.
+- Generated matching lightweight source payload `release/1.4.13-payload.txt`; decoded it to a temporary file and verified the decoded source parses successfully. Payload length: 11724 characters.
+- Updated QS to 1.4.15 so the runtime now reads `src/settings/config.json`, keeps `src/profiles/profile.json`, and writes/reads generated TEAM indexes at `src/data/index.json`.
+- Updated validation, README, ADC standards, runbooks, diagrams, ignore files, and status metadata for the canonical settings/profiles/data directory layout.
+- Validation passed for QS 1.4.15 with PowerShell parse checks for all `QuickSearch*.ps1` scripts, JSON parse checks for `src/settings/config.json` and `src/profiles/profile.json`, `tests/smoke-index.ps1`, `tests/smoke-text-transfer.ps1`, `tests/smoke-ultra-transfer.ps1`, and `tests/smoke-payload.ps1`.
+- Generated matching lightweight source payload `release/1.4.15-payload.txt`; the payload is 11760 characters, stays under the 25000-character target, and decoded back to parseable PowerShell source.
+- Updated QS to 1.4.16 so the runtime title, payload batch launchers, and optional transfer default output names read the project version from `src/settings/config.json` `Version` instead of treating `.adc/index.md` as the primary version source.
+- Fixed `src/settings/config.json` to use a valid top-level `Version` key and kept README plus ADC metadata aligned to 1.4.16.
+- Validation passed for QS 1.4.16 with PowerShell parse checks for all `QuickSearch*.ps1` scripts, JSON parse checks for `src/settings/config.json` and `src/profiles/profile.json`, `tests/smoke-index.ps1`, `tests/smoke-text-transfer.ps1`, `tests/smoke-ultra-transfer.ps1`, and `tests/smoke-payload.ps1`.
+- Generated matching lightweight source payload `release/1.4.16-payload.txt`; the payload is 11976 characters, stays under the 25000-character target, and decoded back to parseable PowerShell source.
+- Updated QS to 1.4.17 so main `Re-Index Team Folder` and TagManager `Rebuild Index` run `CreateFileIndex` in a background PowerShell job while the Windows Forms wait popup remains responsive.
+- Added smoke coverage for `InvokeFileIndexWithProcessingDialog`, including background index creation and result reporting.
+- Validation passed for QS 1.4.17 with PowerShell parse checks for all `QuickSearch*.ps1` scripts, JSON parse checks for `src/settings/config.json` and `src/profiles/profile.json`, source split character-limit checks, `tests/smoke-index.ps1`, `tests/smoke-text-transfer.ps1`, `tests/smoke-ultra-transfer.ps1`, and `tests/smoke-payload.ps1`.
+- Generated matching lightweight source payload `release/1.4.17-payload.txt`; the payload is 12452 characters, stays under the 25000-character target, and decoded back to parseable PowerShell source.
+- Updated QS to 1.4.18 so TEAM index rebuilds report scan/index/write stages, processed file counts, indexed/skipped totals, and elapsed time in the responsive Windows Forms popup.
+- Added a Cancel button to the background indexing popup; cancel stops the background index job and leaves the old index safer by writing the new JSON to a temporary file before replacement.
+- Split the new async/progress helpers into `src/QuickSearch.Async.ps1` and `src/QuickSearch.IndexStatus.ps1` so every `QuickSearch*.ps1` file remains under the 25000-character limit.
+- Added smoke coverage for status reporting, including final `Completed` state and processed/indexed/skipped counts from deterministic fixtures.
+- Validation passed for QS 1.4.18 with PowerShell parse checks for all `QuickSearch*.ps1` scripts, JSON parse checks for `src/settings/config.json` and `src/profiles/profile.json`, source split character-limit checks, `tests/smoke-index.ps1`, `tests/smoke-text-transfer.ps1`, `tests/smoke-ultra-transfer.ps1`, and `tests/smoke-payload.ps1`.
+- Generated matching lightweight source payload `release/1.4.18-payload.txt`; the payload is 13536 characters, stays under the 25000-character target, and decoded back to parseable PowerShell source.
+- User validated QS 1.4.18 no longer UI-freezes during TEAM indexing, but observed the popup could remain at `Indexing files: 0/34871` for minutes while elapsed time continued.
+- Updated QS to 1.4.19 so index status advances before each file is read and includes the current file name, making slow or problematic files visible in the progress popup.
+- Added `MaxTagFileSizeMB` to `src/settings/config.json` with a default of 10 MB; new or changed files above the limit skip generated tag extraction while remaining searchable by filename and path.
+- Split index policy helpers into `src/QuickSearch.IndexPolicy.ps1` and added payload/test coverage so the release payload includes the new helper.
+- Validation passed for QS 1.4.19 with PowerShell parse checks for all `QuickSearch*.ps1` scripts, JSON parse checks for `src/settings/config.json` and `src/profiles/profile.json`, source split character-limit checks, `tests/smoke-index.ps1`, `tests/smoke-text-transfer.ps1`, `tests/smoke-ultra-transfer.ps1`, and `tests/smoke-payload.ps1`.
+- Generated matching lightweight source payload `release/1.4.19-payload.txt`; the payload is 13916 characters, stays under the 25000-character target, and decoded back to parseable PowerShell source.
+- Updated QS to 1.4.20 with `AllowedFileExtNames` as an index extension whitelist; non-empty whitelist settings skip nonmatching file extensions before content reads.
+- Added `AllowedFileExtNames` to `src/settings/config.json` and exposed Allowed extensions in the TagManager settings popup alongside the existing ignore lists.
+- Added `src/data/index.sample.json` as a schema v2 reference instance without replacing the generated runtime `src/data/index.json`.
+- Validation passed for QS 1.4.20 with PowerShell parse checks for all `QuickSearch*.ps1` scripts, JSON parse checks for `src/settings/config.json`, `src/profiles/profile.json`, and `src/data/index.sample.json`, source split character-limit checks, `tests/smoke-index.ps1`, `tests/smoke-text-transfer.ps1`, `tests/smoke-ultra-transfer.ps1`, and `tests/smoke-payload.ps1`.
+- Generated matching lightweight source payload `release/1.4.20-payload.txt`; the payload is 14212 characters, stays under the 25000-character target, and decoded back to parseable PowerShell source.
+- Updated QS to 1.4.21 with `src/QuickSearch.Preview.ps1`, splitting preview helpers out of the main UI file and keeping every `QuickSearch*.ps1` file under 25000 characters.
+- Added WebBrowser-backed preview rendering for `.html` and `.htm` files, plus Markdown files that contain HTML tags; plain Markdown remains on the RichTextBox RTF path.
+- Added File Content search keyword highlighting in the preview pane for text, HTML, and Markdown-with-HTML preview paths.
+
+## 2026-06-17
+
+- Updated QS to 1.4.24 so `src/QuickSearch.bat` launches `PowerShell.exe` with `start "" /min`, keeping the companion console minimized while the Windows Forms UI opens normally.
+- Updated `tests/smoke-index.ps1` to assert the minimized launcher behavior and to validate that the currently selected profile resolves to an existing profile file without forcing local config back to `default.profile.json`.
+- Updated README and ADC metadata for QS 1.4.24.
+- Validation passed with parse-only checks for all `src/QuickSearch*.ps1` files, JSON checks for `src/settings/config.json`, `src/profiles/*.profile.json`, and `src/data/index.sample.json`, plus `tests/smoke-index.ps1` and `tests/smoke-payload.ps1`.
+- Generated `release/1.4.24-payload.txt`; it is 19720 bytes/characters and decoded back to parseable PowerShell source at `tmp/quicksearch-1.4.24.decoded.ps1`.
+- CGA-Relay activity/index recording could not be completed because the current tool surface did not expose a ContextGraph/CGA-Relay recording or changed-file indexing tool.
+- Updated QS to 1.4.25 so `src/QuickSearch.ps1` no longer unconditionally calls `Pause` after the UI closes. The companion console now exits by default after the Windows Forms dialog returns, while `QS_PAUSE_ON_EXIT=1` preserves the previous debug pause behavior.
+- Updated `tests/smoke-index.ps1`, README, and ADC metadata for the console auto-exit behavior.
+- Validation passed with parse-only checks for all `src/QuickSearch*.ps1` files, JSON checks for `src/settings/config.json`, `src/profiles/*.profile.json`, and `src/data/index.sample.json`, plus `tests/smoke-index.ps1` and `tests/smoke-payload.ps1`.
+- Generated `release/1.4.25-payload.txt`; it is 19760 bytes/characters and decoded back to parseable PowerShell source at `tmp/quicksearch-1.4.25.decoded.ps1`.
+- Updated QS to 1.4.26 with `src/QuickSearch.vbs`, a no-console Windows Script Host launcher that starts `src/QuickSearch.ps1` through hidden PowerShell so only the Windows Forms UI is shown.
+- Updated `src/QuickSearch.bat` to delegate to `src/QuickSearch.vbs` for compatibility; double-clicking the batch file can still briefly show `cmd.exe` because batch files are console programs.
+- Updated README, bootstrap, ADC metadata, and `tests/smoke-index.ps1` for the no-console launcher behavior.
+- Validation passed with parse-only checks for all `src/QuickSearch*.ps1` files, JSON checks for `src/settings/config.json`, `src/profiles/*.profile.json`, and `src/data/index.sample.json`, `src/QuickSearch.vbs` execution through `cscript.exe` with `QS_SKIP_AUTORUN=1`, plus `tests/smoke-index.ps1` and `tests/smoke-payload.ps1`.
+- Generated `release/1.4.26-payload.txt`; it is 19760 bytes/characters and decoded back to parseable PowerShell source at `tmp/quicksearch-1.4.26.decoded.ps1`.
+- CGA-Relay activity/index recording could not be completed because the current tool surface does not expose a ContextGraph/CGA-Relay recording or changed-file indexing tool.
+- Updated QS to 1.4.34 by moving legacy payload, ZIP/Base64, and UltraTransfer helpers into `src/tools/` for manual reuse.
+- Updated README and ADC guidance so QS no longer treats release payload generation or 25000-character split-transfer packaging as an active default workflow.
+- Updated QS to 1.4.27 so Search button work runs through `InvokeQuickSearchWithProcessingDialog` in a background PowerShell job instead of blocking the Windows Forms UI thread.
+- Added `src/QuickSearch.Search.ps1` as a pure filesystem search helper used by both the UI path and the background search job.
+- Updated result population to batch ListBox updates with `BeginUpdate`/`AddRange`/`EndUpdate` and to log only the result count instead of writing the full result set for every item.
+- Updated README, ADC metadata, and `tests/smoke-index.ps1` with background filename, content, and index search coverage.
+- Fixed payload minifier spacing so `return [PSCustomObject]` is not compressed into invalid `return[PSCustomObject]`, and added `tests/smoke-payload.ps1` coverage for that regression.
+- Validation passed with parse-only checks for all `src/QuickSearch*.ps1` files, JSON checks for `src/settings/config.json`, `src/profiles/*.profile.json`, and `src/data/index.sample.json`, plus `tests/smoke-index.ps1` and `tests/smoke-payload.ps1`.
+- Generated `release/1.4.27-payload.txt`; it is 20380 bytes/characters and decoded back to parseable PowerShell source at `tmp/quicksearch-1.4.27.decoded.ps1`.
+- Updated QS to 1.4.28 so the background search progress dialog body no longer shows duplicated `Elapsed:` text; elapsed time remains in the dialog title bar.
+- Updated `tests/smoke-index.ps1`, README, and ADC metadata for the search dialog text behavior.
+- Validation passed with parse-only checks for all `src/QuickSearch*.ps1` files, JSON checks for `src/settings/config.json`, `src/profiles/*.profile.json`, and `src/data/index.sample.json`, `src/QuickSearch.vbs` execution through `cscript.exe` with `QS_SKIP_AUTORUN=1`, plus `tests/smoke-index.ps1` and `tests/smoke-payload.ps1`.
+- Generated `release/1.4.28-payload.txt`; it is 20352 bytes/characters and decoded back to parseable PowerShell source at `tmp/quicksearch-1.4.28.decoded.ps1`.
+- CGA-Relay activity/index recording could not be completed because the current tool surface does not expose a ContextGraph/CGA-Relay recording or changed-file indexing tool.
+- Updated QS to 1.4.29 to clarify that content search is a live recursive scan, not an indexed full-text lookup.
+- Changed the content search radio label to `Live Content Scan (Slow)` and the search progress message to `Scanning file content live, this may take a while...`.
+- Updated README and ADC metadata to document that the TEAM index stores filenames, paths, and generated top-word tags, not full source file text.
+- Validation passed with parse-only checks for all `src/QuickSearch*.ps1` files, JSON checks for `src/settings/config.json`, `src/profiles/*.profile.json`, and `src/data/index.sample.json`, `src/QuickSearch.vbs` execution through `cscript.exe` with `QS_SKIP_AUTORUN=1`, plus `tests/smoke-index.ps1` and `tests/smoke-payload.ps1`.
+- Generated `release/1.4.29-payload.txt`; it is 20368 bytes/characters and decoded back to parseable PowerShell source at `tmp/quicksearch-1.4.29.decoded.ps1`.
+- CGA-Relay activity/index recording could not be completed because the current tool surface does not expose a ContextGraph/CGA-Relay recording or changed-file indexing tool.
+- Updated QS to 1.4.30 so result preview highlighting is driven by the active search keyword rather than only the Live Content Scan state.
+- Updated README, ADC metadata, and `tests/smoke-index.ps1` for broader preview keyword highlighting, including a RichTextBox `SelectionBackColor` assertion for highlighted text.
+- Validation passed with parse-only checks for all `src/QuickSearch*.ps1` files, JSON checks for `src/settings/config.json`, `src/profiles/*.profile.json`, and `src/data/index.sample.json`, `src/QuickSearch.vbs` execution through `cscript.exe` with `QS_SKIP_AUTORUN=1`, plus `tests/smoke-index.ps1` and `tests/smoke-payload.ps1`.
+- Generated `release/1.4.30-payload.txt`; it is 20404 bytes/characters and decoded back to parseable PowerShell source at `tmp/quicksearch-1.4.30.decoded.ps1`.
+- CGA-Relay activity/index recording could not be completed because the current tool surface does not expose a ContextGraph/CGA-Relay recording or changed-file indexing tool.
+- Updated QS to 1.4.31 so the keyword search box uses placeholder behavior: focus clears `keyword`, empty blur restores it, and searches treat the placeholder as no keyword.
+- Updated README, ADC metadata, and `tests/smoke-index.ps1` for keyword placeholder behavior.
+- Validation passed with parse-only checks for all `src/QuickSearch*.ps1` files, JSON checks for `src/settings/config.json`, `src/profiles/*.profile.json`, and `src/data/index.sample.json`, `src/QuickSearch.vbs` execution through `cscript.exe` with `QS_SKIP_AUTORUN=1`, source split character-limit checks, plus `tests/smoke-index.ps1` and `tests/smoke-payload.ps1`.
+- Generated `release/1.4.31-payload.txt`; it is 20656 bytes/characters and decoded back to parseable PowerShell source at `tmp/quicksearch-1.4.31.decoded.ps1`.
+- CGA-Relay activity/index recording could not be completed because the current tool surface does not expose a ContextGraph/CGA-Relay recording or changed-file indexing tool.
+- Updated QS to 1.4.32 so preview keyword highlights are also bold in RichTextBox text preview and HTML/WebBrowser preview.
+- Updated README, ADC metadata, and `tests/smoke-index.ps1` for bold preview keyword highlighting; validation completed as part of the 1.4.33 validation pass.
+- Updated QS to 1.4.33 so Live Content Scan applies runtime allowed/ignored file filters before reading content and uses a stream reader that stops at the first simple keyword match in each file.
+- Updated README, ADC metadata, and `tests/smoke-index.ps1` for filtered Live Content Scan behavior.
+- Validation passed with parse-only checks for all `src/QuickSearch*.ps1` files, JSON checks for `src/settings/config.json`, `src/profiles/*.profile.json`, and `src/data/index.sample.json`, `src/QuickSearch.vbs` execution through `cscript.exe` with `QS_SKIP_AUTORUN=1`, source split character-limit checks, plus `tests/smoke-index.ps1` and `tests/smoke-payload.ps1`.
+- Generated `release/1.4.33-payload.txt`; it is 20960 bytes/characters and decoded back to parseable PowerShell source at `tmp/quicksearch-1.4.33.decoded.ps1`.
+- CGA-Relay activity/index recording could not be completed because the current tool surface does not expose a ContextGraph/CGA-Relay recording or changed-file indexing tool.
+- Added `.html` and `.htm` to `AllowedFileExtNames` so HTML files can participate in TEAM indexing by default.
+- Validation passed for QS 1.4.21 with PowerShell parse checks for all `QuickSearch*.ps1` scripts, JSON parse checks for `src/settings/config.json`, `src/profiles/profile.json`, and `src/data/index.sample.json`, source split character-limit checks, `tests/smoke-index.ps1`, `tests/smoke-text-transfer.ps1`, `tests/smoke-ultra-transfer.ps1`, and `tests/smoke-payload.ps1`.
+- Generated matching lightweight source payload `release/1.4.21-payload.txt`; the payload is 16876 characters, stays under the 25000-character target, and decoded back to parseable PowerShell source.
+- Updated QS to 1.4.22 with `src/QuickSearch.IndexResume.ps1` for resumable TEAM index checkpoint handling.
+- TEAM indexing now writes checkpoint data to `src/data/index.json.tmp` during long rebuilds and uses that temporary checkpoint plus the last completed index as metadata reuse sources on the next run.
+- Unchanged files now reuse previous document/tag metadata when size and timestamp match; new or changed files are the ones that perform tag extraction.
+- The indexing popup now shows indexed, reused, and skipped counts so unchanged-file reuse is visible during long rebuilds.
+- Validation passed for QS 1.4.22 with PowerShell parse checks for all `QuickSearch*.ps1` scripts, JSON parse checks for `src/settings/config.json`, `src/profiles/profile.json`, and `src/data/index.sample.json`, source split character-limit checks, `tests/smoke-index.ps1`, `tests/smoke-text-transfer.ps1`, `tests/smoke-ultra-transfer.ps1`, and `tests/smoke-payload.ps1`.
+- Generated matching lightweight source payload `release/1.4.22-payload.txt`; the payload is 17524 characters, stays under the 25000-character target, includes the resumable checkpoint helper, and decoded back to parseable PowerShell source.
+- Updated QS to 1.4.23 with `src/QuickSearch.Profile.ps1`, `src/settings/config.json` `ProfileName`, and a main-window `Settings` button for selecting `src/profiles/*.profile.json`, defaulting to `default.profile.json`.
+- Profile selection now applies profile overlays to drive letter, document path, TEAM path, type list, ignored folders, allowed/ignored extensions, and related index settings, then persists the selected profile file name in config.
+- Validation passed for QS 1.4.23 with `tests/smoke-index.ps1`, `tests/smoke-text-transfer.ps1`, `tests/smoke-ultra-transfer.ps1`, and `tests/smoke-payload.ps1`; the smoke-index suite includes default profile discovery and `nate.profile.json` overlay checks.
+- Generated matching lightweight source payload `release/1.4.23-payload.txt`; the payload is 19720 characters, stays under the 25000-character target, includes the profile helper, and decoded back to parseable PowerShell source.

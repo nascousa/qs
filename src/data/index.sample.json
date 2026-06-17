@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 2,
+  "root": "D:\\Example\\Orcas_Main\\team",
+  "createdUtc": "2026-06-16T00:00:00.0000000Z",
+  "documents": [
+    {
+      "id": 1,
+      "name": "team-notes.txt",
+      "path": "D:\\Example\\Orcas_Main\\team\\team-notes.txt",
+      "sizeInBytes": 128,
+      "lastModified": "2026-06-16T00:00:00.0000000-07:00",
+      "lastWriteUtc": "2026-06-16T07:00:00.0000000Z",
+      "tags": [
+        "handoff",
+        "support",
+        "team"
+      ],
+      "tagCounts": {
+        "handoff": 5,
+        "support": 3,
+        "team": 2
+      }
+    },
+    {
+      "id": 2,
+      "name": "runbook.md",
+      "path": "D:\\Example\\Orcas_Main\\team\\runbook.md",
+      "sizeInBytes": 256,
+      "lastModified": "2026-06-16T00:05:00.0000000-07:00",
+      "lastWriteUtc": "2026-06-16T07:05:00.0000000Z",
+      "tags": [
+        "runbook",
+        "restore",
+        "ops"
+      ],
+      "tagCounts": {
+        "runbook": 4,
+        "restore": 3,
+        "ops": 2
+      }
+    }
+  ],
+  "terms": {
+    "handoff": [
+      1
+    ],
+    "notes": [
+      1
+    ],
+    "ops": [
+      2
+    ],
+    "restore": [
+      2
+    ],
+    "runbook": [
+      2
+    ],
+    "support": [
+      1
+    ],
+    "team": [
+      1,
+      2
+    ]
+  }
+}

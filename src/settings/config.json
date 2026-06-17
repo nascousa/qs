@@ -1,0 +1,48 @@
+{
+    "Title":  "QuickSearch",
+    "Version":  "1.4.34",
+    "ProfileName":  "nate.profile.json",
+    "Width":  1500,
+    "Height":  600,
+    "Path":  ":\\Orcas_Main\\TSG-SOP\\",
+    "TeamPath":  ":\\Orcas_Main\\Team\\nasco\\",
+    "Types":  [
+                  "ALL",
+                  "TSG",
+                  "SOP",
+                  "CASE",
+                  "TEAM"
+              ],
+    "Ignored":  [
+                    "On-Call_Handoff",
+                    "~DELETING"
+                ],
+    "IgnoredFilenames":  [
+                             "example"
+                         ],
+    "AllowedFileExtNames":  [
+                                ".txt",
+                                ".md",
+                                ".markdown",
+                                ".html",
+                                ".htm",
+                                ".ps1",
+                                ".psm1",
+                                ".psd1",
+                                ".json",
+                                ".xml",
+                                ".csv",
+                                ".log",
+                                ".ini",
+                                ".yml",
+                                ".yaml"
+                            ],
+    "IgnoredFileExtNames":  [
+                                ".jpg",
+                                ".docx",
+                                ".png"
+                            ],
+    "TagCount":  10,
+    "MaxTagFileSizeMB":  10,
+    "DriveLetter":  "D"
+}

@@ -1,0 +1,565 @@
+<#
+.SYNOPSIS
+Runs the QuickSearch desktop search UI.
+
+.DESCRIPTION
+A Windows Forms utility for searching mapped drive files with content preview and integrated tag indexing.
+
+.PARAMETER InputPath
+Specifies a settings/config.json file to customize according to your needs.
+
+.PARAMETER OutputPath
+None
+
+.INPUTS
+None. You cannot pipe objects to QuickSearch.ps1.
+
+.OUTPUTS
+None. QuickSearch.ps1 does not generate pipeline output.
+
+.EXAMPLE
+PS> .\QuickSearch.ps1
+
+#>
+
+
+$SupportScriptPath = Join-Path -Path $PSScriptRoot -ChildPath 'QuickSearch.Support.ps1'
+. $SupportScriptPath
+
+
+Function Run()
+{
+    Write-Host "`n[ New Search ]`n" -ForegroundColor Cyan
+
+    GUI
+
+    Write-Host "`n[ Search Completed ]`n" -ForegroundColor Green
+    if ($env:QS_PAUSE_ON_EXIT -eq '1') {
+        Pause
+    }
+}
+
+<#
+.SYNOPSIS
+    Randering script with a GUI
+#>
+Function GUI()
+{
+    Add-Type -assembly System.Windows.Forms
+
+    $ConfigPath = Join-Path -Path (Join-Path -Path $PSScriptRoot -ChildPath 'settings') -ChildPath 'config.json'
+    $IndexFilePath = Join-Path -Path (Join-Path -Path $PSScriptRoot -ChildPath 'data') -ChildPath 'index.json'
+    $ProfilesDirectory = GetQuickSearchProfilesDirectory -ScriptRoot $PSScriptRoot
+    $config = ReadConfig $ConfigPath
+    $profileState = UseQuickSearchProfile -Config $config -ProfilesDirectory $ProfilesDirectory
+    Write-Host "ConfigPath: $ConfigPath"
+    Write-Host "ProfilePath: $($profileState.Path)"
+
+    $main_form = New-Object System.Windows.Forms.Form
+    $title = $config.Title
+    if ([string]::IsNullOrWhiteSpace($title)) {
+        $title = $config.QSTitle
+    }
+    if ([string]::IsNullOrWhiteSpace($title)) {
+        $title = 'QuickSearch'
+    }
+    $repoRoot = Split-Path -Parent $PSScriptRoot
+    $projectVersion = GetQuickSearchProjectVersion -Config $config -ConfigPath $ConfigPath -RepoRoot $repoRoot
+    $main_form.Text = GetQuickSearchWindowTitle -BaseTitle $title -Version $projectVersion
+    $main_form.Width = $($config.Width)
+    $main_form.Height = $($config.Height)
+    $main_form.AutoSize = $false
+    $main_form.FormBorderStyle = "FixedDialog"
+    $main_form.AutoScaleMode = 'None'
+    # $main_form.StartPosition = "CenterScreen"
+    $main_form.MaximizeBox = $false
+    $search_results = @()
+
+
+    # --------------------------------------------------------------------------------
+    # Label_DeriveLetter
+    $Label_DeriveLetter = New-Object System.Windows.Forms.Label
+    $Label_DeriveLetter.Text = 'Drive'
+    $Label_DeriveLetter.Location = New-Object System.Drawing.Point(10, 10)
+    $Label_DeriveLetter.Width = 35
+    $main_form.Controls.Add($Label_DeriveLetter)
+
+    # ComboBox_DriveLetter
+    $ComboBox_DriveLetter = New-Object System.Windows.Forms.ComboBox
+    $ComboBox_DriveLetter.Location = New-Object System.Drawing.Point(45, 10)
+    $ComboBox_DriveLetter.Width = 40
+    @("A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z") | ForEach-Object {
+        [void]$ComboBox_DriveLetter.Items.Add($_)
+    }
+    $main_form.Controls.Add($ComboBox_DriveLetter)
+    # --------------------------------------------------------------------------------
+
+
+    # --------------------------------------------------------------------------------
+    # Label_Type
+    $Label_Type = New-Object System.Windows.Forms.Label
+    $Label_Type.Text = 'Type'
+    $Label_Type.Location = New-Object System.Drawing.Point(90, 10)
+    $Label_Type.Width = 30
+    $main_form.Controls.Add($Label_Type)
+
+    # ComboBox_Type
+    $ComboBox_Type = New-Object System.Windows.Forms.ComboBox
+    $ComboBox_Type.Location = New-Object System.Drawing.Point(120, 10)
+    $ComboBox_Type.Width = 70
+    $main_form.Controls.Add($ComboBox_Type)
+    SetQuickSearchProfileControls -Config $config -DriveComboBox $ComboBox_DriveLetter -TypeComboBox $ComboBox_Type
+    # --------------------------------------------------------------------------------
+
+
+    # --------------------------------------------------------------------------------
+    # RadioButton_SearchMethod1
+    $RadioButton_SearchMethod1 = New-Object System.Windows.Forms.RadioButton
+    $RadioButton_SearchMethod1.Text = 'Filename/Tags (Quick)'
+    $RadioButton_SearchMethod1.Location = New-Object System.Drawing.Point(195, 10)
+    $RadioButton_SearchMethod1.Width = 145
+    $RadioButton_SearchMethod1.Checked = $true
+    $main_form.Controls.Add($RadioButton_SearchMethod1)
+    
+    # RadioButton_SearchMethod2
+    $RadioButton_SearchMethod2 = New-Object System.Windows.Forms.RadioButton
+    $RadioButton_SearchMethod2.Text = 'Live Content Scan (Slow)'
+    $RadioButton_SearchMethod2.Location = New-Object System.Drawing.Point(345, 10)
+    $RadioButton_SearchMethod2.Width = 165
+    $RadioButton_SearchMethod2.Checked = $false
+    $main_form.Controls.Add($RadioButton_SearchMethod2)
+        
+    # TextBox_Keyword
+    $TextBox_Keyword = New-Object System.Windows.Forms.TextBox
+    $TextBox_Keyword.Location = New-Object System.Drawing.Point(515, 10)
+    $TextBox_Keyword.Width = 140
+    InitializeQuickSearchKeywordPlaceholder -TextBox $TextBox_Keyword -Placeholder 'keyword'
+    $main_form.Controls.Add($TextBox_Keyword)
+    
+    # Button_Search
+    $Button_Search = New-Object System.Windows.Forms.Button
+    $Button_Search.Text = 'Search'
+    $Button_Search.Location = New-Object System.Drawing.Point(665, 10)
+    $Button_Search.Width = 80
+    $Button_Search.Height = 20
+    $main_form.Controls.Add($Button_Search)
+    $main_form.AcceptButton = $Button_Search
+    # --------------------------------------------------------------------------------
+
+
+    # --------------------------------------------------------------------------------
+
+    # Button_Index
+    $Button_Index = New-Object System.Windows.Forms.Button
+    $Button_Index.Text = 'Re-Index Team Folder'
+    $Button_Index.Location = New-Object System.Drawing.Point(755, 10)
+    $Button_Index.Width = 150
+    $Button_Index.Height = 20
+    $main_form.Controls.Add($Button_Index)
+    # --------------------------------------------------------------------------------
+
+
+    # --------------------------------------------------------------------------------
+    # Button_TagManager
+    $Button_TagManager = New-Object System.Windows.Forms.Button
+    $Button_TagManager.Text = 'TagManager'
+    $Button_TagManager.Location = New-Object System.Drawing.Point(915, 10)
+    $Button_TagManager.Width = 105
+    $Button_TagManager.Height = 20
+    $main_form.Controls.Add($Button_TagManager)
+    # --------------------------------------------------------------------------------
+
+
+    # --------------------------------------------------------------------------------
+    # Button_PreviewToggle
+    $Button_PreviewToggle = New-Object System.Windows.Forms.Button
+    $Button_PreviewToggle.Text = 'Show Preview'
+    $Button_PreviewToggle.Location = New-Object System.Drawing.Point(1030, 10)
+    $Button_PreviewToggle.Width = 110
+    $Button_PreviewToggle.Height = 20
+    $main_form.Controls.Add($Button_PreviewToggle)
+    # --------------------------------------------------------------------------------
+
+
+    # --------------------------------------------------------------------------------
+    # Button_Settings
+    $Button_Settings = New-Object System.Windows.Forms.Button
+    $Button_Settings.Text = 'Settings'
+    $Button_Settings.Location = New-Object System.Drawing.Point(1150, 10)
+    $Button_Settings.Width = 80
+    $Button_Settings.Height = 20
+    $main_form.Controls.Add($Button_Settings)
+    # --------------------------------------------------------------------------------
+
+
+    # --------------------------------------------------------------------------------
+    # Label_Status
+    $Label_Status = New-Object System.Windows.Forms.Label
+    $Label_Status.Text = 'Status'
+    $Label_Status.Location = New-Object System.Drawing.Point($($config.Width - 165), 10)
+    $Label_Status.AutoSize = $true
+    $main_form.Controls.Add($Label_Status)
+
+    # TextBox_Status
+    $TextBox_Status = New-Object System.Windows.Forms.TextBox
+    $TextBox_Status.Text = 'none'
+    $TextBox_Status.Location = New-Object System.Drawing.Point($($config.Width - 125), 10)
+    $TextBox_Status.Width = 100
+    $TextBox_Status.AutoSize = $true
+    $TextBox_Status.ReadOnly = $true
+    $main_form.Controls.Add($TextBox_Status)
+    # --------------------------------------------------------------------------------
+
+
+    # --------------------------------------------------------------------------------
+    # ListBox_Results
+    $ListBox_Results = New-Object System.Windows.Forms.ListBox
+    $ListBox_Results.Text = 'none'
+    $ListBox_Results.Location = New-Object System.Drawing.Point(10, 40)
+    $ListBox_Results.Size = New-Object System.Drawing.Size(565, $($config.Height - 110))
+    $ListBox_Results.Width = $($config.Width / 2 - 20)
+    $ListBox_Results.AutoSize = $false
+    $ListBox_Results.Items.AddRange($search_results)
+    $ListBox_Results.ScrollAlwaysVisible = $true
+    $ListBox_Results.HorizontalScrollbar = $true
+    $ListBox_Results.DrawMode = [System.Windows.Forms.DrawMode]::OwnerDrawFixed
+    $ListBox_Results.Items.Clear()
+    $main_form.Controls.Add($ListBox_Results)
+
+    # RichTextBox_TargetFileContent
+    $RichTextBox_TargetFileContent = New-Object System.Windows.Forms.RichTextBox
+    $RichTextBox_TargetFileContent.Text = 'None'
+    $RichTextBox_TargetFileContent.Location = New-Object System.Drawing.Point($($config.Width / 2), 40)
+    $RichTextBox_TargetFileContent.Width = $($config.Width / 2 - 25)
+    $RichTextBox_TargetFileContent.Height = $($config.Height - 115)
+    $RichTextBox_TargetFileContent.AutoSize = $true
+    $RichTextBox_TargetFileContent.ReadOnly = $true
+    $RichTextBox_TargetFileContent.MultiLine = $true
+    $RichTextBox_TargetFileContent.ScrollBars = "Vertical"
+    $main_form.Controls.Add($RichTextBox_TargetFileContent)
+    $WebBrowser_TargetFileContent = New-Object System.Windows.Forms.WebBrowser
+    $WebBrowser_TargetFileContent.ScriptErrorsSuppressed = $true
+    $WebBrowser_TargetFileContent.AllowWebBrowserDrop = $false
+    $WebBrowser_TargetFileContent.IsWebBrowserContextMenuEnabled = $true
+    $WebBrowser_TargetFileContent.WebBrowserShortcutsEnabled = $true
+    $main_form.Controls.Add($WebBrowser_TargetFileContent)
+    $PreviewHost = NewQuickSearchPreviewHost -TextBox $RichTextBox_TargetFileContent -Browser $WebBrowser_TargetFileContent
+    $PreviewState = [PSCustomObject]@{
+        Expanded = $false
+    }
+    $SearchState = [PSCustomObject]@{
+        Keyword = ''
+        ContentSearch = $false
+    }
+    SetQuickSearchPreviewPanelState -Form $main_form -ResultsListBox $ListBox_Results -PreviewHost $PreviewHost -PreviewButton $Button_PreviewToggle -Expanded $PreviewState.Expanded
+    # --------------------------------------------------------------------------------
+
+
+    # --------------------------------------------------------------------------------
+    # TextBox_TargetFilePath
+    $TextBox_TargetFilePath = New-Object System.Windows.Forms.TextBox
+    $TextBox_TargetFilePath.Text = 'Double click on the filename above to open it!'
+    $TextBox_TargetFilePath.Location = New-Object System.Drawing.Point(10, $($config.Height - 70))
+    $TextBox_TargetFilePath.Width = $($config.Width - 100)
+    $TextBox_TargetFilePath.AutoSize = $false
+    $TextBox_TargetFilePath.ReadOnly = $true
+    $main_form.Controls.Add($TextBox_TargetFilePath)
+
+    # Button_OpenTargetFile
+    $Button_OpenTargetFile = New-Object System.Windows.Forms.Button
+    $Button_OpenTargetFile.Text = 'Open'
+    $Button_OpenTargetFile.Location = New-Object System.Drawing.Point($($config.Width - 85), $($config.Height - 70))
+    $Button_OpenTargetFile.Width = 60
+    $Button_OpenTargetFile.Height = 20
+    $main_form.Controls.Add($Button_OpenTargetFile)
+    # --------------------------------------------------------------------------------
+
+
+    # --------------------------------------------------------------------------------
+    # Button_Search Add_Click event handler
+    # --------------------------------------------------------------------------------
+    $Button_Search.Add_Click({
+        $ListBox_Results.Items.Clear()
+        $TextBox_TargetFilePath.Text = "Searching..."
+        $TextBox_Status.Text = "Searching..."
+        $search_results = @()
+        $SearchType = 0
+        $SearchMethod = 0
+
+        $keyword = GetQuickSearchKeywordText -TextBox $TextBox_Keyword
+        if ([string]::IsNullOrWhiteSpace($keyword)) {
+            [void]$ListBox_Results.Items.Add('Enter a keyword first.')
+            $TextBox_Status.Text = 'No keyword'
+            $TextBox_TargetFilePath.Text = 'No keyword'
+            $SearchState.Keyword = ''
+            $SearchState.ContentSearch = $false
+            return
+        }
+
+        $SearchState.Keyword = $keyword
+
+        $selectedType = $ComboBox_Type.Text
+        if ($selectedType -eq "TEAM") {
+            $teamPathTemplate = $config.TeamPath
+            if ([string]::IsNullOrWhiteSpace($teamPathTemplate)) {
+                $teamPathTemplate = ':\Orcas_Main\team\'
+            }
+            $path = ResolveConfiguredPath -DriveLetter $ComboBox_DriveLetter.Text -PathTemplate $teamPathTemplate
+            $SearchType = 1 # TEAM
+        }
+        else {
+            $basePath = ResolveConfiguredPath -DriveLetter $ComboBox_DriveLetter.Text -PathTemplate $config.Path
+            if ($selectedType -eq "ALL") {
+                $path = $basePath
+            }
+            else {
+                $path = Join-Path -Path $basePath -ChildPath $selectedType
+            }
+            $SearchType = 0 # TSG/SOP/CASE
+        }
+
+        Write-Host "$path"
+
+        if($RadioButton_SearchMethod1.Checked){
+            $SearchMethod = 0
+        }else{
+            $SearchMethod = 1
+        }
+        $SearchState.ContentSearch = (1 -eq $SearchMethod)
+
+        if ([string]::IsNullOrWhiteSpace($path) -or -not (Test-Path -LiteralPath $path)) {
+            [void]$ListBox_Results.Items.Add("Path not found: $path")
+            $TextBox_Status.Text = 'Path not found'
+            $TextBox_TargetFilePath.Text = 'Path not found'
+            return
+        }
+
+        $useIndex = (1 -eq $SearchType -and 0 -eq $SearchMethod)
+        $searchContent = (1 -eq $SearchMethod)
+        $IndexFile = $IndexFilePath
+
+        Write-Host "SearchType: $SearchType`n" -ForegroundColor Cyan
+        Write-Host "SearchMethod: $SearchMethod`n" -ForegroundColor Cyan
+
+        if ($useIndex) {
+            Write-Host "IndexFile: $IndexFile"
+            if (-not (Test-Path -LiteralPath $IndexFile)) {
+                [void]$ListBox_Results.Items.Add('Team index not found. Re-index Team Folder first.')
+                $TextBox_Status.Text = 'Index not found'
+                $TextBox_TargetFilePath.Text = 'Index not found'
+                return
+            }
+        }
+
+        $searchMessage = 'Searching filenames, please wait...'
+        if ($useIndex) {
+            $searchMessage = 'Searching TEAM index, please wait...'
+        }
+        elseif ($searchContent) {
+            $searchMessage = 'Scanning file content live, this may take a while...'
+        }
+
+        $Button_Search.Enabled = $false
+        try {
+            $searchResult = InvokeQuickSearchWithProcessingDialog -Owner $main_form -Title 'Search' -Message $searchMessage -Root $path -Keyword $keyword -SearchContent $searchContent -UseIndex $useIndex -IndexFilePath $IndexFile -Config $config
+            if ($searchResult.Canceled) {
+                [void]$ListBox_Results.Items.Add('Search canceled.')
+                $TextBox_Status.Text = 'Canceled'
+                $TextBox_TargetFilePath.Text = 'Canceled'
+                return
+            }
+            if ($searchResult.Failed) {
+                [void]$ListBox_Results.Items.Add("Search failed: $($searchResult.ErrorMessage)")
+                $TextBox_Status.Text = 'Failed'
+                $TextBox_TargetFilePath.Text = 'Failed'
+                return
+            }
+            $search_results = @($searchResult.Results)
+        }
+        finally {
+            $Button_Search.Enabled = $true
+        }
+
+        $ListBox_Results.BeginUpdate()
+        try {
+            if(@($search_results).Count -gt 0){
+                $resultItems = [object[]]@($search_results | ForEach-Object { [string]$_ })
+                $ListBox_Results.Items.AddRange($resultItems)
+                Write-Host "Search Results: $($resultItems.Count)`n" -ForegroundColor Green
+            }else{
+                [void]$ListBox_Results.Items.Add('Keyword cannot be found!')
+                Write-Host "Search Results: none!`n" -ForegroundColor Red
+            }
+        }
+        finally {
+            $ListBox_Results.EndUpdate()
+        }
+
+        $TextBox_Status.Text = "Completed"
+        $TextBox_TargetFilePath.Text = "Completed"
+
+    })
+
+
+
+    # --------------------------------------------------------------------------------
+    # Button_Index Add_Click event handler
+    # --------------------------------------------------------------------------------
+    $Button_Index.Add_Click({
+        $TextBox_Status.Text = "Re-Indexing..."
+
+        $teamPathTemplate = GetTeamPathTemplate $config
+        $path = ResolveConfiguredPath -DriveLetter $ComboBox_DriveLetter.Text -PathTemplate $teamPathTemplate
+        Write-Host "IndexPath: $path"
+
+        if (-not (Test-Path -LiteralPath $path)) {
+            [System.Windows.Forms.MessageBox]::Show("Team folder cannot be found: $path", 'Path Not Found')
+            $TextBox_Status.Text = 'Path not found'
+            return
+        }
+
+        Write-Host "Re-Indexing...`n" -ForegroundColor Yellow
+        $Button_Index.Enabled = $false
+        $Button_TagManager.Enabled = $false
+        try {
+            $created = InvokeFileIndexWithProcessingDialog -Owner $main_form -Title 'Index Team Folder' -Message 'Indexing in progress, this may take up to 10 minutes, please wait...' -Root $path -Config $config -IndexFilePath $IndexFilePath
+        }
+        finally {
+            $Button_Index.Enabled = $true
+            $Button_TagManager.Enabled = $true
+        }
+
+        if ($created) {
+            $TextBox_Status.Text = "completed"
+            [System.Windows.Forms.MessageBox]::Show('Indexing completed.', 'Index Team Folder') | Out-Null
+        }
+        else {
+            $TextBox_Status.Text = "failed"
+            [System.Windows.Forms.MessageBox]::Show('Indexing failed.', 'Index Team Folder') | Out-Null
+        }
+    })
+
+
+    # --------------------------------------------------------------------------------
+    # Button_TagManager Add_Click event handler
+    # --------------------------------------------------------------------------------
+    $Button_TagManager.Add_Click({
+        ShowTagManagerSettings -Owner $main_form -Config $config -ConfigPath $ConfigPath -IndexFilePath $IndexFilePath -DriveLetter $ComboBox_DriveLetter.Text
+    })
+
+
+    # --------------------------------------------------------------------------------
+    # Button_Settings Add_Click event handler
+    # --------------------------------------------------------------------------------
+    $Button_Settings.Add_Click({
+        $profileResult = ShowQuickSearchProfileSettings -Owner $main_form -Config $config -ConfigPath $ConfigPath -ProfilesDirectory $ProfilesDirectory
+        if ($null -ne $profileResult -and $profileResult.Applied) {
+            SetQuickSearchProfileControls -Config $config -DriveComboBox $ComboBox_DriveLetter -TypeComboBox $ComboBox_Type
+            $ListBox_Results.Items.Clear()
+            $TextBox_Status.Text = 'Profile applied'
+            $TextBox_TargetFilePath.Text = "Profile: $($profileResult.Name)"
+        }
+    })
+
+
+    # --------------------------------------------------------------------------------
+    # Button_PreviewToggle Add_Click event handler
+    # --------------------------------------------------------------------------------
+    $Button_PreviewToggle.Add_Click({
+        $PreviewState.Expanded = -not $PreviewState.Expanded
+        SetQuickSearchPreviewPanelState -Form $main_form -ResultsListBox $ListBox_Results -PreviewHost $PreviewHost -PreviewButton $Button_PreviewToggle -Expanded $PreviewState.Expanded
+    })
+    
+
+    # --------------------------------------------------------------------------------
+    # Button_OpenTargetFile Add_Click event handler
+    # --------------------------------------------------------------------------------
+    $Button_OpenTargetFile.Add_Click({
+        $SelectedItemPath = [string]$ListBox_Results.SelectedItem
+
+        if(TestExistingLiteralPath $SelectedItemPath){
+            Start-Process -FilePath $SelectedItemPath
+            Write-Host $SelectedItemPath
+        }
+    })
+
+
+    # --------------------------------------------------------------------------------
+    # ListBox_Results Add_Click event handler
+    # --------------------------------------------------------------------------------
+    $ListBox_Results.Add_Click({
+        $SelectedItemPath = [string]$ListBox_Results.SelectedItem
+        if(TestExistingLiteralPath $SelectedItemPath)
+        {
+            $TextBox_TargetFilePath.Text = $SelectedItemPath
+            $TargetFileContent = Get-Content -LiteralPath $TextBox_TargetFilePath.Text -Raw
+            $PreviewState.Expanded = $true
+            SetQuickSearchPreviewPanelState -Form $main_form -ResultsListBox $ListBox_Results -PreviewHost $PreviewHost -PreviewButton $Button_PreviewToggle -Expanded $PreviewState.Expanded
+            $highlightPreviewKeyword = -not [string]::IsNullOrWhiteSpace($SearchState.Keyword)
+            SetQuickSearchPreviewContent -PreviewHost $PreviewHost -FilePath $TextBox_TargetFilePath.Text -Content $TargetFileContent -Keyword $SearchState.Keyword -HighlightKeyword:$highlightPreviewKeyword
+        }
+    })
+
+
+    # --------------------------------------------------------------------------------
+    # ListBox_Results Add_DoubleClick event handler
+    # --------------------------------------------------------------------------------
+    $ListBox_Results.Add_DoubleClick({
+        $SelectedItemPath = [string]$ListBox_Results.SelectedItem
+
+        if(TestExistingLiteralPath $SelectedItemPath){
+            Start-Process -FilePath $SelectedItemPath
+            Write-Host $SelectedItemPath
+        }
+    })
+
+
+    # --------------------------------------------------------------------------------
+    # ListBox_Results Add_DrawItem event handler
+    # --------------------------------------------------------------------------------
+    $ListBox_Results.Add_DrawItem({
+        param(
+            [System.Object]$listBoxSender,
+            [System.Windows.Forms.DrawItemEventArgs]$e
+        )
+
+        if($e.Index -lt 0){
+            return
+        }
+
+        if($e.Index %2 -eq 0){
+            $e.Graphics.FillRectangle([System.Drawing.Brushes]::LightGray, $e.Bounds)
+        }else{
+            $e.Graphics.FillRectangle([System.Drawing.Brushes]::White, $e.Bounds)
+        }
+
+        $ItemText = $ListBox_Results.Items[$e.Index]
+        $font = [System.Drawing.SystemFonts]::DefaultFont
+        
+        if($e.State -band [System.Windows.Forms.DrawItemState]::Selected){
+            $font = [System.Drawing.Font]::new($font, [System.Drawing.FontStyle]::Bold)
+            $e.Graphics.DrawString($ItemText, $font, [System.Drawing.Brushes]::DarkBlue, $e.Bounds.X, $e.Bounds.Y)
+        }else{
+            $e.Graphics.DrawString($ItemText, $ListBox_Results.Font, [System.Drawing.Brushes]::Black, $e.Bounds.X, $e.Bounds.Y)
+        }
+    })
+
+    
+    # --------------------------------------------------------------------------------
+    # main_form Add_FormClosing event handler
+    # --------------------------------------------------------------------------------
+    $main_form.Add_FormClosing({
+        if($_.CloseReason -eq 'UserClosing'){
+            $main_form.Close()
+        }
+    })
+    # --------------------------------------------------------------------------------
+
+    
+    # Display window
+    $main_form.ShowDialog() | Out-Null
+}
+
+if ($env:QS_SKIP_AUTORUN -ne '1') {
+    Run
+}

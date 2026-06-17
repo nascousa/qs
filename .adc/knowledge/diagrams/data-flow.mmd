@@ -1,0 +1,27 @@
+flowchart TD
+  Start([Launch src/QuickSearch.ps1]) --> LoadSupport[Dot-source src/QuickSearch.Support.ps1]
+  LoadSupport --> LoadConfig[Read src/settings/config.json]
+  LoadConfig --> RenderUI[Render Windows Forms UI]
+  RenderUI --> UserInput[Drive, type, method, keyword]
+  UserInput --> BuildPath[Build mapped-drive target path]
+  BuildPath --> FileScan[Get-ChildItem recursive scan]
+  FileScan --> FilenameSearch[Filename search]
+  FileScan --> ContentSearch[Content search]
+  RenderUI --> TeamQuickSearch[TEAM quick search]
+  TeamQuickSearch --> RootIndex[src/data/index.json documents and inverted terms]
+  RootIndex --> IndexedMatches[Filename path tag term matches]
+  FilenameSearch --> Results[ListBox results]
+  ContentSearch --> Results
+  IndexedMatches --> Results
+  Results --> SelectResult[User selects result]
+  SelectResult --> ReadFile[Get-Content preview]
+  ReadFile --> AutoExpand[Auto-expand preview pane]
+  AutoExpand --> PreviewMode{Markdown extension?}
+  PreviewMode -->|Yes| MarkdownRtf[Convert Markdown to RTF]
+  PreviewMode -->|No| PlainText[Plaintext preview]
+  MarkdownRtf --> Preview[Preview content]
+  PlainText --> Preview
+  Results --> OpenSelected[Start-Process selected file]
+  RenderUI --> Reindex[Re-index team folder]
+  Reindex --> TagExtraction[Read files and extract top English words]
+  TagExtraction --> RootIndex

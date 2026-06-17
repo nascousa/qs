@@ -1,0 +1,16 @@
+{
+    "DriveLetter": "D",
+    "DocPath": ":\\Orcas_Main\\TSG-SOP\\",
+    "TeamPath": ":\\Orcas_Main\\Team\\nasco\\",
+    "Types": [
+        "ALL",
+        "TSG",
+        "SOP",
+        "CASE",
+        "TEAM"
+    ],
+    "Ignored": [
+        "On-Call_Handoff",
+        "~DELETING"
+    ]
+}

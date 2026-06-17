@@ -1,0 +1,28 @@
+flowchart TD
+  Start([Launch src/QuickSearch.ps1]) --> LoadSupport[Dot-source src/QuickSearch.Support.ps1]
+  LoadSupport --> ReadConfig[Read src/settings/config.json]
+  ReadConfig --> RenderUI[Render Windows Forms UI]
+  RenderUI --> SearchClick[Search button click]
+  SearchClick --> ResolvePath[Resolve mapped-drive path]
+  ResolvePath --> SelectMode{Filename or content search?}
+  SelectMode -->|Filename TSG/SOP/CASE| FilenameSearch[Get-ChildItem plus name filter]
+  SelectMode -->|Filename TEAM| TagIndexSearch[Read src/data/index.json documents terms]
+  SelectMode -->|Content| ContentSearch[Get-ChildItem plus Select-String]
+  FilenameSearch --> Results[ListBox results]
+  TagIndexSearch --> Results
+  ContentSearch --> Results
+  Results --> SelectResult[Select or double-click result]
+  RenderUI --> PreviewCollapsed[Preview collapsed by default]
+  PreviewCollapsed --> PreviewToggle[Show Preview or Hide Preview]
+  SelectResult --> AutoExpand[Auto-expand preview pane]
+  AutoExpand --> PreviewMode{Markdown file?}
+  PreviewMode -->|Yes| MarkdownPreview[Render Markdown to RTF preview]
+  PreviewMode -->|No| PlainPreview[Render plaintext preview]
+  SelectResult --> Open[Open selected file]
+  RenderUI --> TagManager[TagManager settings popup]
+  TagManager --> SaveConfig[Save src/settings/config.json]
+  TagManager --> PopupReindex[Rebuild TEAM index]
+  RenderUI --> Reindex[Re-index team folder]
+  Reindex --> ExtractTags[Extract top English words]
+  PopupReindex --> ExtractTags
+  ExtractTags --> IndexJson[Write src/data/index.json documents terms]

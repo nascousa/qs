@@ -1,0 +1,44 @@
+# Constitutional Amendments
+
+All material changes to rules inside `.adc/` should be reviewed as ADC amendments and recorded here with date, reason, and scope.
+
+- 2026-06-15: Ratified initial QS onboarding to ADC 1.1.27, including project index, prompt rules, bootstrap guide, planning docs, standards, knowledge base, diagrams, CGA MCP profile, root rule pointers, README, ignore files, and CGA-Relay change aggregation policy.
+- 2026-06-16: Cleaned duplicated onboarding content, aligned project metadata to version 1.0.1, and restored single authoritative QS ADC rule files.
+- 2026-06-16: Updated QS project context to version 1.1.0 for TagManager consolidation, including integrated TEAM tag index schema, diagrams, bootstrap smoke checks, status, and known-issue updates.
+- 2026-06-16: Updated QS project context to version 1.1.1 for non-GUI index smoke testing and the `QS_SKIP_AUTORUN` test entry guard.
+- 2026-06-16: Updated QS project context to version 1.2.0 for the TagManager settings popup and config-save/rebuild workflow.
+- 2026-06-16: Updated QS project context to version 1.3.0 for lightweight Markdown preview rendering in the right-side preview pane.
+- 2026-06-16: Updated QS project context to version 1.4.0 for collapsible preview behavior, full-width default results layout, and preview auto-expand on file selection.
+- 2026-06-16: Updated QS project context to version 1.4.1 for indexing wait popup behavior during TEAM index rebuilds.
+- 2026-06-16: Updated QS project context to version 1.4.2 for repairing the Windows batch launcher entry point.
+- 2026-06-16: Updated QS project context to version 1.4.3 for splitting PowerShell source into two files under the 25000-character file limit.
+- 2026-06-16: Updated QS project context to version 1.4.4 for correcting QS display versions to omit leading zero padding and documenting patch-first carry behavior.
+- 2026-06-16: Updated QS project context to version 1.4.5 for adding the ZIP/Base64 text transfer utility, smoke coverage, and corrected no-leading-zero version metadata.
+- 2026-06-16: Updated QS project context to version 1.4.7 for adding the PowerShell source payload utility that minifies source, encodes UTF-8, compresses with Brotli, writes Base64 text, and validates decode round trips.
+- 2026-06-16: Updated QS project context to version 1.4.8 for adding the double-click payload batch launcher and smoke coverage for launcher-generated payload output.
+- 2026-06-16: Updated QS project context to version 1.4.9 for splitting oversized ZIP/Base64 release text into a manifest plus 25000-character-safe part files.
+- 2026-06-16: Updated QS project context to version 1.4.10 for moving TEAM index behavior into `src/QuickSearch.Index.ps1` and writing schema v2 indexes with `documents`, inverted `terms`, unchanged-file tag metadata reuse, and legacy search compatibility.
+- 2026-06-16: Updated QS project context to version 1.4.11 for adding optional ultra-compressed Brotli/Base64 file and folder transfer with fewer 25000-character-safe text files.
+- 2026-06-16: Updated QS project context to version 1.4.12 for clarifying that the lightweight `release/<project-version>-payload.txt` source payload is the default outgoing release artifact and moving optional transfer defaults to `tmp\transfer\`.
+- 2026-06-16: Updated QS project context to version 1.4.13 for streaming TEAM top-word extraction, avoiding full-file split-word arrays during index rebuilds, and keeping optional transfer defaults under `tmp\transfer\`.
+- 2026-06-16: Updated QS project context to version 1.4.14 for splitting the payload batch launcher into explicit encode and decode launchers.
+- 2026-06-16: Updated QS project context to version 1.4.15 for canonical runtime directories: settings config under `src/settings/`, profiles under `src/profiles/`, and generated indexes under `src/data/`.
+- 2026-06-16: Updated QS project context to version 1.4.16 so the runtime and payload launchers read the project version from `src/settings/config.json` `Version`.
+- 2026-06-16: Updated QS project context to version 1.4.17 for responsive background TEAM index rebuilds that avoid UI-thread blocking during long runs.
+- 2026-06-16: Updated QS project context to version 1.4.18 for TEAM index progress reporting, cancel support, split async/status helpers, and safer temporary-file index replacement.
+- 2026-06-16: Updated QS project context to version 1.4.19 for current-file progress reporting and `MaxTagFileSizeMB` tag extraction limits during TEAM index rebuilds.
+- 2026-06-16: Updated QS project context to version 1.4.20 for extension whitelist indexing through `AllowedFileExtNames` and a schema v2 `src/data/index.sample.json` reference file.
+- 2026-06-16: Updated QS project context to version 1.4.21 for HTML preview rendering, Markdown files with HTML tags, and content-search keyword highlighting.
+- 2026-06-16: Updated QS project context to version 1.4.22 for resumable TEAM index checkpoints through `index.json.tmp` and unchanged-file metadata reuse.
+- 2026-06-16: Updated QS project context to version 1.4.23 for selectable `*.profile.json` runtime profiles through the main-window Settings button, defaulting to `default.profile.json`.
+- 2026-06-17: Updated QS project context to version 1.4.24 for minimizing the companion PowerShell console when launching the QS UI through `src/QuickSearch.bat`.
+- 2026-06-17: Updated QS project context to version 1.4.25 so closing the QS UI exits the companion console by default, with `QS_PAUSE_ON_EXIT=1` for debug pauses.
+- 2026-06-17: Updated QS project context to version 1.4.26 with `src/QuickSearch.vbs`, a no-console Windows Script Host launcher for the QS UI, and delegated the compatibility batch launcher to it.
+- 2026-06-17: Updated QS project context to version 1.4.27 for responsive background searches through `InvokeQuickSearchWithProcessingDialog` and `src/QuickSearch.Search.ps1`.
+- 2026-06-17: Updated QS project context to version 1.4.28 to remove duplicated elapsed-time text from the search progress dialog body.
+- 2026-06-17: Updated QS project context to version 1.4.29 to clarify that content search is a live scan and the TEAM index is not a full-text content index.
+- 2026-06-17: Updated QS project context and testing guidance to version 1.4.30 so preview highlighting uses any active search keyword, not only Live Content Scan results.
+- 2026-06-17: Updated QS project context to version 1.4.31 for keyword textbox placeholder behavior that clears on focus and restores on empty blur.
+- 2026-06-17: Updated QS project context to version 1.4.32 so preview highlights render active search keywords with both highlight background and bold weight.
+- 2026-06-17: Updated QS project context to version 1.4.33 so Live Content Scan filters candidate files through runtime allowed/ignored settings and stops reading a file after the first simple match.
+- 2026-06-17: Updated QS project context to version 1.4.34 for archiving legacy payload, ZIP/Base64, and UltraTransfer helpers under `src/tools/` and removing the default release/split-transfer workflow from active guidance.

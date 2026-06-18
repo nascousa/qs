@@ -1,11 +1,11 @@
 {
     "Title":  "QuickSearch",
-    "Version":  "1.4.45",
+    "Version":  "1.4.46",
     "ProfileName":  "nate.profile.json",
     "Width":  1500,
     "Height":  600,
     "Path":  ":\\Orcas_Main\\TSG-SOP\\",
-    "TeamPath":  ":\\Orcas_Main\\Team\\nasco\\",
+    "TeamPath":  ":\\Orcas_Main\\Team\\",
     "Types":  [
                   "ALL",
                   "TSG",

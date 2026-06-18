@@ -48,7 +48,8 @@ try {
     $repoConfig = Get-Content -LiteralPath $repoConfigPath -Raw | ConvertFrom-Json
     $repoDefaultProfile = Get-Content -LiteralPath $repoDefaultProfilePath -Raw | ConvertFrom-Json
     $repoNateProfile = Get-Content -LiteralPath $repoNateProfilePath -Raw | ConvertFrom-Json
-    Assert-True -Condition ('1.4.45' -eq $repoConfig.Version) -Message 'QS version should live in src\settings\config.json Version.'
+    Assert-True -Condition ('1.4.46' -eq $repoConfig.Version) -Message 'QS version should live in src\settings\config.json Version.'
+    Assert-True -Condition (':\Orcas_Main\Team\' -eq $repoConfig.TeamPath) -Message 'QS config should default TEAM indexing to the shared Team root.'
     Assert-True -Condition (200 -eq $repoConfig.MaxSearchResults) -Message 'QS config should bound default search result count.'
     Assert-True -Condition (10 -eq $repoConfig.MaxContentScanFileSizeMB) -Message 'QS config should bound default live content scan file size.'
     Assert-True -Condition ('Configured Types' -eq $repoConfig.LiveContentScanScope) -Message 'QS config should default ALL live scans to configured type roots.'

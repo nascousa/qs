@@ -1,6 +1,6 @@
 # QuickSearch (QS)
 
-**Version:** v1.4.45  
+**Version:** v1.4.46
 **Date:** 2026-06-18  
 **Status:** Air-gapped, pure PowerShell desktop search tool for mapped team folders  
 **ADC Standard:** 1.1.27  
@@ -31,7 +31,7 @@ Set-Location D:\Repos\QuickSearch
 PowerShell.exe -NoProfile -ExecutionPolicy Bypass -File .\src\QuickSearch.ps1
 ```
 
-The window title uses the `Version` value from `src/settings/config.json`, for example `QuickSearch v1.4.45`.
+The window title uses the `Version` value from `src/settings/config.json`, for example `QuickSearch v1.4.46`.
 
 ## Main Buttons
 
@@ -78,6 +78,8 @@ Selecting a result opens the preview pane automatically. QS previews plain text,
 - Default profile: `src/profiles/default.profile.json`
 
 Profiles are for environment-specific values such as drive letter, document path, TEAM path, and type list. Global search and indexing defaults stay in `src/settings/config.json` unless a profile intentionally overrides them.
+
+The main config TEAM path targets the shared `Orcas_Main\Team` root by default; selected profiles can narrow that path when needed.
 
 ## Validation
 

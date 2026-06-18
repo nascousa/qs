@@ -185,6 +185,8 @@ Use this file for task handoff notes, progress, validation evidence, blockers, r
 - Validation passed for QS 1.4.44 with parse-only checks for changed scripts, JSON parse checks for settings/profiles, direct HTML preview highlight helper verification, `tests/smoke-index.ps1`, clean VS Code diagnostics, and `git diff --check`.
 - Updated QS to 1.4.45 so the Index Settings popup puts `Re-Index Team Folder` at the lower-left, keeps Save/Close at the lower-right, and uses the middle-lower area for current index data such as indexed file count, unique generated tags, search terms, tag assignments, schema version, timestamps, and file size.
 - Validation passed for QS 1.4.45 with parse-only checks, JSON parse checks for settings/profiles, `tests/smoke-index.ps1`, clean VS Code diagnostics, and `git diff --check`.
+- Updated QS to 1.4.46 so the main config TEAM path defaults to the shared `Orcas_Main\Team` root while selected profiles can still override it.
+- Validation passed for QS 1.4.46 with parse-only checks, JSON parse checks for settings/profiles, `tests/smoke-index.ps1`, clean VS Code diagnostics, version residue check, and `git diff --check`.
 - Updated README positioning to emphasize QS is intended for air-gapped/offline Windows environments, is written in pure PowerShell, and does not require third-party libraries or external services.
 - Updated QS to 1.4.27 so Search button work runs through `InvokeQuickSearchWithProcessingDialog` in a background PowerShell job instead of blocking the Windows Forms UI thread.
 - Added `src/QuickSearch.Search.ps1` as a pure filesystem search helper used by both the UI path and the background search job.

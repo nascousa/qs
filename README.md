@@ -1,8 +1,8 @@
 # QuickSearch (QS)
 
-**Version:** v1.4.44
-**Date:** 2026-06-18
-**Status:** Simple Windows desktop search tool for mapped team folders
+**Version:** v1.4.44  
+**Date:** 2026-06-18  
+**Status:** Simple Windows desktop search tool for mapped team folders  
 **ADC Standard:** 1.1.27
 
 QuickSearch is a small Windows PowerShell app for finding files on mapped shared drives. It can search by filename, search generated TEAM tags quickly, scan file contents when needed, preview matched files, and open the selected file.

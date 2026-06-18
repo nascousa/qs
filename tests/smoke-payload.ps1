@@ -36,6 +36,7 @@ $mainScriptPath = Join-Path -Path $repoRoot -ChildPath 'src\QuickSearch.ps1'
 $indexStatusScriptPath = Join-Path -Path $repoRoot -ChildPath 'src\QuickSearch.IndexStatus.ps1'
 $indexPolicyScriptPath = Join-Path -Path $repoRoot -ChildPath 'src\QuickSearch.IndexPolicy.ps1'
 $indexResumeScriptPath = Join-Path -Path $repoRoot -ChildPath 'src\QuickSearch.IndexResume.ps1'
+$queryScriptPath = Join-Path -Path $repoRoot -ChildPath 'src\QuickSearch.Query.ps1'
 $indexScriptPath = Join-Path -Path $repoRoot -ChildPath 'src\QuickSearch.Index.ps1'
 $searchScriptPath = Join-Path -Path $repoRoot -ChildPath 'src\QuickSearch.Search.ps1'
 $asyncScriptPath = Join-Path -Path $repoRoot -ChildPath 'src\QuickSearch.Async.ps1'
@@ -78,7 +79,7 @@ $samplePayload = ConvertTo-QuickSearchBrotliBase64Payload -Source $sampleSource
 Assert-True -Condition ($samplePayload -match '^[A-Za-z0-9+/]+={0,2}$') -Message 'Payload should be Base64 text.'
 Assert-True -Condition ($minifiedSample -eq (ConvertFrom-QuickSearchBrotliBase64Payload -Payload $samplePayload)) -Message 'Payload should decode to the minified source.'
 
-$quickSearchSource = Join-QuickSearchPowerShellSource -Path @($indexStatusScriptPath, $indexPolicyScriptPath, $indexResumeScriptPath, $indexScriptPath, $searchScriptPath, $asyncScriptPath, $previewScriptPath, $profileScriptPath, $supportScriptPath, $mainScriptPath)
+$quickSearchSource = Join-QuickSearchPowerShellSource -Path @($indexStatusScriptPath, $indexPolicyScriptPath, $indexResumeScriptPath, $queryScriptPath, $indexScriptPath, $searchScriptPath, $asyncScriptPath, $previewScriptPath, $profileScriptPath, $supportScriptPath, $mainScriptPath)
 $quickSearchMinified = ConvertTo-QuickSearchMinifiedPowerShell -Source $quickSearchSource
 $quickSearchPayload = ConvertTo-QuickSearchBrotliBase64Payload -Source $quickSearchSource
 $quickSearchDecoded = ConvertFrom-QuickSearchBrotliBase64Payload -Payload $quickSearchPayload

@@ -24,8 +24,60 @@ Function SaveConfig {
 }
 
 
+Function SetQuickSearchDialogCenter {
+    param(
+        [System.Windows.Forms.Form]$Dialog,
+        [System.Windows.Forms.Form]$Owner
+    )
+
+    if ($null -eq $Dialog -or $Dialog.IsDisposed) {
+        return
+    }
+
+    if ($null -ne $Owner -and -not $Owner.IsDisposed) {
+        $ownerBounds = $Owner.Bounds
+        if ($Owner.WindowState -eq [System.Windows.Forms.FormWindowState]::Minimized -and $Owner.RestoreBounds.Width -gt 0 -and $Owner.RestoreBounds.Height -gt 0) {
+            $ownerBounds = $Owner.RestoreBounds
+        }
+
+        if ($ownerBounds.Width -gt 0 -and $ownerBounds.Height -gt 0) {
+            $targetLeft = [int]($ownerBounds.Left + (($ownerBounds.Width - $Dialog.Width) / 2))
+            $targetTop = [int]($ownerBounds.Top + (($ownerBounds.Height - $Dialog.Height) / 2))
+            $screenBounds = [System.Windows.Forms.Screen]::FromControl($Owner).WorkingArea
+            $maxLeft = [Math]::Max($screenBounds.Left, $screenBounds.Right - $Dialog.Width)
+            $maxTop = [Math]::Max($screenBounds.Top, $screenBounds.Bottom - $Dialog.Height)
+            $targetLeft = [Math]::Min([Math]::Max($screenBounds.Left, $targetLeft), $maxLeft)
+            $targetTop = [Math]::Min([Math]::Max($screenBounds.Top, $targetTop), $maxTop)
+            $Dialog.StartPosition = 'Manual'
+            $Dialog.Location = New-Object System.Drawing.Point($targetLeft, $targetTop)
+            return
+        }
+    }
+
+    $Dialog.StartPosition = 'CenterScreen'
+}
+
+
+Function ShowQuickSearchMessageBox {
+    param(
+        [System.Windows.Forms.Form]$Owner,
+        [string]$Message,
+        [string]$Title
+    )
+
+    if ($null -ne $Owner -and -not $Owner.IsDisposed) {
+        [System.Windows.Forms.MessageBox]::Show($Owner, $Message, $Title) | Out-Null
+        return
+    }
+
+    [System.Windows.Forms.MessageBox]::Show($Message, $Title) | Out-Null
+}
+
+
 $IndexScriptPath = Join-Path -Path $PSScriptRoot -ChildPath 'QuickSearch.Index.ps1'
 . $IndexScriptPath
+$QueryScriptPath = Join-Path -Path $PSScriptRoot -ChildPath 'QuickSearch.Query.ps1'
+. $QueryScriptPath
 $SearchScriptPath = Join-Path -Path $PSScriptRoot -ChildPath 'QuickSearch.Search.ps1'
 . $SearchScriptPath
 $AsyncScriptPath = Join-Path -Path $PSScriptRoot -ChildPath 'QuickSearch.Async.ps1'
@@ -469,6 +521,33 @@ Function SetPreviewContent {
     $PreviewBox.Text = $Content
 }
 
+
+Function ShowQuickSearchAbout {
+    param(
+        [System.Windows.Forms.Form]$Owner,
+        [object]$Config
+    )
+
+    $newLine = [Environment]::NewLine
+    $versionText = ConvertVersionToTitleSuffix -Version (GetQuickSearchProjectVersion -Config $Config)
+    $message = @(
+        "QuickSearch $versionText",
+        '',
+        'Author: Nate Scott (NASCO)',
+        'Email: nate.scott@microsoft.com',
+        '',
+        'Basic use:',
+        '1. Choose a drive, type, and search mode.',
+        '2. Enter a keyword and click Search.',
+        '3. Use Filename/Tags (Quick) for fast indexed TEAM searches.',
+        '4. Use Content (Slow) when you need to search inside files.',
+        '5. Select a result to preview it, then click Open to launch the file.',
+        '6. Open Index to update TEAM index settings or run Re-Index Team Folder.'
+    ) -join $newLine
+
+    ShowQuickSearchMessageBox -Owner $Owner -Message $message -Title 'About QuickSearch'
+}
+
 Function ShowIndexSettings {
     param(
         [System.Windows.Forms.Form]$Owner,
@@ -627,7 +706,7 @@ Function ShowIndexSettings {
         $teamRoot = ResolveConfiguredPath -DriveLetter $DriveLetter -PathTemplate $Config.TeamPath
         if ([string]::IsNullOrWhiteSpace($teamRoot) -or -not (Test-Path -LiteralPath $teamRoot)) {
             $Label_Status.Text = "TEAM path not found: $teamRoot"
-            [System.Windows.Forms.MessageBox]::Show("TEAM path cannot be found: $teamRoot", 'Path Not Found') | Out-Null
+            ShowQuickSearchMessageBox -Owner $settingsForm -Message "TEAM path cannot be found: $teamRoot" -Title 'Path Not Found'
             return
         }
 
@@ -656,6 +735,7 @@ Function ShowIndexSettings {
     $settingsForm.AcceptButton = $Button_Save
     $settingsForm.CancelButton = $Button_Close
 
+    SetQuickSearchDialogCenter -Dialog $settingsForm -Owner $Owner
     [void]$settingsForm.ShowDialog($Owner)
 }
 

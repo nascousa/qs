@@ -3,6 +3,9 @@
 Provides QuickSearch filesystem search helpers.
 #>
 
+$QueryScriptPath = Join-Path -Path $PSScriptRoot -ChildPath 'QuickSearch.Query.ps1'
+. $QueryScriptPath
+
 Function GetQuickSearchFilenameWildcardPattern {
     param([string]$Keyword)
 
@@ -234,13 +237,15 @@ Function SearchQuickSearchContentCandidates {
     param(
         [System.IO.FileInfo[]]$Files,
         [string]$Keyword,
-        [int]$MaxResults
+        [int]$MaxResults,
+        [object]$Query = $null
     )
 
+    if ($null -eq $Query) { $Query = ConvertToQuickSearchBooleanQuery -Text $Keyword }
     $matchedPaths = New-Object System.Collections.ArrayList
     foreach ($file in @($Files)) {
         if (TestQuickSearchResultLimitReached -Results $matchedPaths -MaxResults $MaxResults) { break }
-        if ($file -is [System.IO.FileInfo] -and (TestQuickSearchFileContentMatch -File $file -Keyword $Keyword)) {
+        if ($file -is [System.IO.FileInfo] -and (TestQuickSearchFileContentMatch -File $file -Keyword $Keyword -Query $Query)) {
             [void]$matchedPaths.Add($file.FullName)
         }
     }
@@ -256,9 +261,11 @@ Function SearchQuickSearchContentWithPowerShell {
         [object]$Config,
         [bool]$UsePolicyFilter,
         [int64]$MaxContentScanFileSizeBytes,
-        [int]$MaxResults
+        [int]$MaxResults,
+        [object]$Query = $null
     )
 
+    if ($null -eq $Query) { $Query = ConvertToQuickSearchBooleanQuery -Text $Keyword }
     $matchedPaths = New-Object System.Collections.ArrayList
     foreach ($scanRoot in @($Roots)) {
         if (TestQuickSearchResultLimitReached -Results $matchedPaths -MaxResults $MaxResults) { break }
@@ -289,7 +296,7 @@ Function SearchQuickSearchContentWithPowerShell {
                     catch { continue }
 
                     if (-not (TestQuickSearchSearchFileAllowed -File $file -Config $Config -UsePolicyFilter $UsePolicyFilter -MaxContentScanFileSizeBytes $MaxContentScanFileSizeBytes)) { continue }
-                    if (TestQuickSearchFileContentMatch -File $file -Keyword $Keyword) { [void]$matchedPaths.Add($file.FullName) }
+                    if (TestQuickSearchFileContentMatch -File $file -Keyword $Keyword -Query $Query) { [void]$matchedPaths.Add($file.FullName) }
                 }
             }
             catch {
@@ -307,11 +314,12 @@ Function SearchQuickSearchFilenameWithPowerShell {
         [string]$Keyword,
         [int]$MaxResults,
         [object]$Config = $null,
-        [bool]$UsePolicyFilter = $false
+        [bool]$UsePolicyFilter = $false,
+        [object]$Query = $null
     )
 
+    if ($null -eq $Query) { $Query = ConvertToQuickSearchBooleanQuery -Text $Keyword }
     $matchedPaths = New-Object System.Collections.ArrayList
-    $keywordPattern = GetQuickSearchFilenameWildcardPattern $Keyword
     foreach ($scanRoot in @($Roots)) {
         if (TestQuickSearchResultLimitReached -Results $matchedPaths -MaxResults $MaxResults) { break }
         if ([string]::IsNullOrWhiteSpace($scanRoot) -or -not (Test-Path -LiteralPath $scanRoot -PathType Container)) { continue }
@@ -335,7 +343,7 @@ Function SearchQuickSearchFilenameWithPowerShell {
             try {
                 foreach ($filePath in [System.IO.Directory]::EnumerateFiles($currentDirectory)) {
                     if (TestQuickSearchResultLimitReached -Results $matchedPaths -MaxResults $MaxResults) { break }
-                    if ([System.IO.Path]::GetFileName($filePath) -like $keywordPattern) { [void]$matchedPaths.Add($filePath) }
+                    if (TestQuickSearchBooleanQueryText -Query $Query -Text ([System.IO.Path]::GetFileName($filePath))) { [void]$matchedPaths.Add($filePath) }
                 }
             }
             catch {
@@ -352,10 +360,14 @@ Function InvokeQuickSearchRipgrepSearch {
         [string[]]$Roots,
         [string]$Keyword,
         [object]$Config,
-        [int]$MaxResults
+        [int]$MaxResults,
+        [object]$Query = $null
     )
 
     if (-not (GetQuickSearchUseRipgrep -Config $Config)) { return $null }
+    if ($null -eq $Query) { $Query = ConvertToQuickSearchBooleanQuery -Text $Keyword }
+    $singleTerm = GetQuickSearchSinglePositiveQueryTerm -Query $Query
+    if ([string]::IsNullOrWhiteSpace($singleTerm)) { return $null }
 
     $ripgrepCommand = Get-Command -Name 'rg' -CommandType Application -ErrorAction SilentlyContinue
     if ($null -eq $ripgrepCommand) { return $null }
@@ -385,7 +397,7 @@ Function InvokeQuickSearchRipgrepSearch {
     $existingRoots = @($Roots | Where-Object { -not [string]::IsNullOrWhiteSpace($_) -and (Test-Path -LiteralPath $_ -PathType Container) })
     if ($existingRoots.Count -eq 0) { return @() }
 
-    $arguments += @('--', $Keyword)
+    $arguments += @('--', $singleTerm)
     $arguments += $existingRoots
 
     try {
@@ -401,8 +413,18 @@ Function InvokeQuickSearchRipgrepSearch {
 Function TestQuickSearchFileContentMatch {
     param(
         [System.IO.FileInfo]$File,
-        [string]$Keyword
+        [string]$Keyword,
+        [object]$Query = $null
     )
+
+    if ($null -eq $Query) { $Query = ConvertToQuickSearchBooleanQuery -Text $Keyword }
+    if (-not (TestQuickSearchBooleanQueryHasTerms -Query $Query)) { return $false }
+    $singleTerm = GetQuickSearchSinglePositiveQueryTerm -Query $Query
+    $queryTerms = @(GetQuickSearchBooleanQueryTerms -Query $Query)
+    $termPresence = @{}
+    foreach ($term in $queryTerms) {
+        $termPresence[([string]$term).ToLowerInvariant()] = $false
+    }
 
     $fileStream = $null
     $reader = $null
@@ -414,7 +436,17 @@ Function TestQuickSearchFileContentMatch {
         while ($true) {
             $line = $reader.ReadLine()
             if ($null -eq $line) { break }
-            if ($line.IndexOf($Keyword, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) { return $true }
+            if (-not [string]::IsNullOrWhiteSpace($singleTerm)) {
+                if ($line.IndexOf($singleTerm, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) { return $true }
+                continue
+            }
+
+            foreach ($term in $queryTerms) {
+                $key = ([string]$term).ToLowerInvariant()
+                if (-not $termPresence[$key] -and (TestQuickSearchTextContainsTerm -Text $line -Term ([string]$term))) {
+                    $termPresence[$key] = $true
+                }
+            }
         }
     }
     catch {
@@ -425,7 +457,7 @@ Function TestQuickSearchFileContentMatch {
         elseif ($null -ne $fileStream) { $fileStream.Dispose() }
     }
 
-    return $false
+    return (TestQuickSearchBooleanQueryPresence -Query $Query -Presence $termPresence)
 }
 
 
@@ -442,6 +474,9 @@ Function SearchFiles {
 
     if ([string]::IsNullOrWhiteSpace($Keyword) -or -not (Test-Path -LiteralPath $Root)) { return @() }
 
+    $query = ConvertToQuickSearchBooleanQuery -Text $Keyword
+    if (-not (TestQuickSearchBooleanQueryHasTerms -Query $query)) { return @() }
+
     $usePolicyFilter = ($null -ne $Config -and $null -ne (Get-Command -Name TestIgnoredFile -ErrorAction SilentlyContinue))
     $maxResults = GetQuickSearchMaxSearchResults -Config $Config
     $maxContentScanFileSizeBytes = GetQuickSearchMaxContentScanFileSizeBytes -Config $Config
@@ -453,14 +488,14 @@ Function SearchFiles {
         $useTeamIndexCandidates = ($selectedTypeText.Equals('TEAM', [System.StringComparison]::OrdinalIgnoreCase) -and $indexExists)
         if ($useTeamIndexCandidates) {
             $candidateFiles = @(GetQuickSearchIndexCandidateFiles -Root $Root -IndexFilePath $IndexFilePath -Config $Config -UsePolicyFilter $usePolicyFilter -MaxContentScanFileSizeBytes $maxContentScanFileSizeBytes)
-            return @(SearchQuickSearchContentCandidates -Files $candidateFiles -Keyword $Keyword -MaxResults $maxResults)
+            return @(SearchQuickSearchContentCandidates -Files $candidateFiles -Keyword $Keyword -MaxResults $maxResults -Query $query)
         }
 
-        $ripgrepResults = InvokeQuickSearchRipgrepSearch -Roots $scanRoots -Keyword $Keyword -Config $Config -MaxResults $maxResults
+        $ripgrepResults = InvokeQuickSearchRipgrepSearch -Roots $scanRoots -Keyword $Keyword -Config $Config -MaxResults $maxResults -Query $query
         if ($null -ne $ripgrepResults) { return @($ripgrepResults | ForEach-Object { [string]$_ }) }
 
-        return @(SearchQuickSearchContentWithPowerShell -Roots $scanRoots -Keyword $Keyword -Config $Config -UsePolicyFilter $usePolicyFilter -MaxContentScanFileSizeBytes $maxContentScanFileSizeBytes -MaxResults $maxResults)
+        return @(SearchQuickSearchContentWithPowerShell -Roots $scanRoots -Keyword $Keyword -Config $Config -UsePolicyFilter $usePolicyFilter -MaxContentScanFileSizeBytes $maxContentScanFileSizeBytes -MaxResults $maxResults -Query $query)
     }
 
-    return @(SearchQuickSearchFilenameWithPowerShell -Roots @($Root) -Keyword $Keyword -MaxResults $maxResults -Config $Config -UsePolicyFilter $usePolicyFilter)
+    return @(SearchQuickSearchFilenameWithPowerShell -Roots @($Root) -Keyword $Keyword -MaxResults $maxResults -Config $Config -UsePolicyFilter $usePolicyFilter -Query $query)
 }

@@ -191,11 +191,22 @@ Function AddQuickSearchHtmlKeywordHighlight {
     $tagMatches = [regex]::Matches($Html, '<[^>]+>')
     $lastIndex = 0
     $replaceOptions = [System.Text.RegularExpressions.RegexOptions]::IgnoreCase
+    $highlightState = [PSCustomObject]@{ Count = 0 }
+    $highlightEvaluator = [System.Text.RegularExpressions.MatchEvaluator]{
+        param([System.Text.RegularExpressions.Match]$Match)
+
+        $highlightState.Count++
+        if ($highlightState.Count -eq 1) {
+            return '<span id="qs-active-highlight" class="qs-highlight">' + $Match.Value + '</span>'
+        }
+
+        return '<span class="qs-highlight">' + $Match.Value + '</span>'
+    }
 
     foreach ($tagMatch in $tagMatches) {
         if ($tagMatch.Index -gt $lastIndex) {
             $segment = $Html.Substring($lastIndex, $tagMatch.Index - $lastIndex)
-            $segment = [regex]::Replace($segment, $escapedKeyword, '<mark class="qs-highlight">$0</mark>', $replaceOptions)
+            $segment = [regex]::Replace($segment, $escapedKeyword, $highlightEvaluator, $replaceOptions)
             [void]$builder.Append($segment)
         }
 
@@ -205,11 +216,90 @@ Function AddQuickSearchHtmlKeywordHighlight {
 
     if ($lastIndex -lt $Html.Length) {
         $segment = $Html.Substring($lastIndex)
-        $segment = [regex]::Replace($segment, $escapedKeyword, '<mark class="qs-highlight">$0</mark>', $replaceOptions)
+        $segment = [regex]::Replace($segment, $escapedKeyword, $highlightEvaluator, $replaceOptions)
         [void]$builder.Append($segment)
     }
 
     return $builder.ToString()
+}
+
+
+Function ScrollQuickSearchBrowserToHighlight {
+    param(
+        [System.Windows.Forms.WebBrowser]$Browser
+    )
+
+    if ($null -eq $Browser) {
+        return
+    }
+
+    try {
+        if ($null -ne $Browser.Document) {
+            $highlightElement = $Browser.Document.GetElementById('qs-active-highlight')
+            if ($null -ne $highlightElement) {
+                $highlightElement.ScrollIntoView($true)
+            }
+        }
+    }
+    catch {
+    }
+}
+
+
+Function SetQuickSearchWebBrowserDocument {
+    param(
+        [System.Windows.Forms.WebBrowser]$Browser,
+        [string]$Html,
+        [switch]$ScrollToHighlight
+    )
+
+    if ($null -eq $Browser) {
+        return
+    }
+
+    $documentWritten = $false
+    try {
+        if (-not $Browser.IsHandleCreated) {
+            [void]$Browser.Handle
+        }
+
+        if ($null -ne $Browser.Document) {
+            [void]$Browser.Document.OpenNew($true)
+            $Browser.Document.Write($Html)
+            $documentWritten = $true
+        }
+    }
+    catch {
+    }
+
+    if (-not $documentWritten) {
+        $Browser.DocumentText = $Html
+    }
+
+    [System.Windows.Forms.Application]::DoEvents()
+    if ($ScrollToHighlight) {
+        ScrollQuickSearchBrowserToHighlight -Browser $Browser
+    }
+}
+
+
+Function NewQuickSearchFindButtonIcon {
+    $bitmap = New-Object System.Drawing.Bitmap(16, 16)
+    $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+    $pen = [System.Drawing.Pen]::new([System.Drawing.Color]::FromArgb(45, 45, 45), 2)
+
+    try {
+        $graphics.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
+        $graphics.Clear([System.Drawing.Color]::Transparent)
+        $graphics.DrawEllipse($pen, 2, 2, 8, 8)
+        $graphics.DrawLine($pen, 9, 9, 14, 14)
+    }
+    finally {
+        $pen.Dispose()
+        $graphics.Dispose()
+    }
+
+    return $bitmap
 }
 
 
@@ -235,7 +325,16 @@ Function ConvertHtmlToPreviewDocument {
     )
 
     $safeHtml = RemoveQuickSearchActiveHtml $Html
-    $highlightedHtml = AddQuickSearchHtmlKeywordHighlight -Html $safeHtml -Keyword $Keyword
+    $bodyRegex = [regex]::new('(?is)<body\b[^>]*>(.*?)</body>')
+    $bodyMatch = $bodyRegex.Match($safeHtml)
+    if ($bodyMatch.Success) {
+        $bodyContentGroup = $bodyMatch.Groups[1]
+        $highlightedBody = AddQuickSearchHtmlKeywordHighlight -Html $bodyContentGroup.Value -Keyword $Keyword
+        $highlightedHtml = $safeHtml.Substring(0, $bodyContentGroup.Index) + $highlightedBody + $safeHtml.Substring($bodyContentGroup.Index + $bodyContentGroup.Length)
+    }
+    else {
+        $highlightedHtml = AddQuickSearchHtmlKeywordHighlight -Html $safeHtml -Keyword $Keyword
+    }
     $style = GetQuickSearchPreviewStyle
 
     if ($highlightedHtml -match '(?is)<html\b') {
@@ -255,12 +354,16 @@ Function ConvertHtmlToPreviewDocument {
 Function NewQuickSearchPreviewHost {
     param(
         [System.Windows.Forms.RichTextBox]$TextBox,
-        [System.Windows.Forms.WebBrowser]$Browser
+        [System.Windows.Forms.WebBrowser]$Browser,
+        [System.Windows.Forms.TextBox]$SearchTextBox = $null,
+        [System.Windows.Forms.Button]$SearchButton = $null
     )
 
     return [PSCustomObject]@{
         TextBox = $TextBox
         Browser = $Browser
+        SearchTextBox = $SearchTextBox
+        SearchButton = $SearchButton
         ActiveView = 'Text'
         Expanded = $false
     }
@@ -275,10 +378,29 @@ Function SetQuickSearchPreviewHostBounds {
         [int]$Height
     )
 
+    $contentLocation = $Location
+    $contentHeight = $Height
+    $searchTextBox = $PreviewHost.SearchTextBox
+    $searchButton = $PreviewHost.SearchButton
+    if ($null -ne $searchTextBox -and $null -ne $searchButton) {
+        $searchButtonWidth = 76
+        $searchGap = 6
+        $searchHeight = 22
+        $searchTextWidth = [Math]::Max(120, $Width - $searchButtonWidth - $searchGap)
+        $searchTextBox.Location = $Location
+        $searchTextBox.Width = $searchTextWidth
+        $searchTextBox.Height = 20
+        $searchButton.Location = New-Object System.Drawing.Point(($Location.X + $searchTextWidth + $searchGap), $Location.Y)
+        $searchButton.Width = $searchButtonWidth
+        $searchButton.Height = 22
+        $contentLocation = New-Object System.Drawing.Point($Location.X, ($Location.Y + $searchHeight + $searchGap))
+        $contentHeight = [Math]::Max(80, $Height - $searchHeight - $searchGap)
+    }
+
     foreach ($previewControl in @($PreviewHost.TextBox, $PreviewHost.Browser)) {
-        $previewControl.Location = $Location
+        $previewControl.Location = $contentLocation
         $previewControl.Width = $Width
-        $previewControl.Height = $Height
+        $previewControl.Height = $contentHeight
     }
 }
 
@@ -292,6 +414,65 @@ Function UpdateQuickSearchPreviewHostVisibility {
     $showText = $PreviewHost.Expanded -and (-not $showHtml)
     $PreviewHost.Browser.Visible = $showHtml
     $PreviewHost.TextBox.Visible = $showText
+    foreach ($searchControl in @($PreviewHost.SearchTextBox, $PreviewHost.SearchButton)) {
+        if ($null -ne $searchControl) {
+            $searchControl.Visible = $PreviewHost.Expanded
+        }
+    }
+}
+
+
+Function DrawQuickSearchHighlightedListText {
+    param(
+        [System.Drawing.Graphics]$Graphics,
+        [System.Drawing.Rectangle]$Bounds,
+        [string]$Text,
+        [string]$Keyword,
+        [System.Drawing.Font]$Font,
+        [System.Drawing.Brush]$TextBrush
+    )
+
+    if ([string]::IsNullOrEmpty($Text)) {
+        return
+    }
+
+    if ([string]::IsNullOrWhiteSpace($Keyword) -or $Text.IndexOf($Keyword, [System.StringComparison]::OrdinalIgnoreCase) -lt 0) {
+        $Graphics.DrawString($Text, $Font, $TextBrush, $Bounds.X, $Bounds.Y)
+        return
+    }
+
+    $highlightBackBrush = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(255, 242, 125))
+    $highlightTextBrush = [System.Drawing.Brushes]::Black
+    $currentX = [single]$Bounds.X
+    $currentIndex = 0
+
+    try {
+        while ($currentIndex -lt $Text.Length) {
+            $matchIndex = $Text.IndexOf($Keyword, $currentIndex, [System.StringComparison]::OrdinalIgnoreCase)
+            if ($matchIndex -lt 0) {
+                $tailText = $Text.Substring($currentIndex)
+                $Graphics.DrawString($tailText, $Font, $TextBrush, $currentX, $Bounds.Y)
+                break
+            }
+
+            if ($matchIndex -gt $currentIndex) {
+                $normalText = $Text.Substring($currentIndex, $matchIndex - $currentIndex)
+                $Graphics.DrawString($normalText, $Font, $TextBrush, $currentX, $Bounds.Y)
+                $currentX += $Graphics.MeasureString($normalText, $Font).Width
+            }
+
+            $matchText = $Text.Substring($matchIndex, $Keyword.Length)
+            $matchSize = $Graphics.MeasureString($matchText, $Font)
+            $highlightRectangle = New-Object System.Drawing.RectangleF($currentX, [single]$Bounds.Y, $matchSize.Width, [single]$Bounds.Height)
+            $Graphics.FillRectangle($highlightBackBrush, $highlightRectangle)
+            $Graphics.DrawString($matchText, $Font, $highlightTextBrush, $currentX, $Bounds.Y)
+            $currentX += $matchSize.Width
+            $currentIndex = $matchIndex + [Math]::Max(1, $Keyword.Length)
+        }
+    }
+    finally {
+        $highlightBackBrush.Dispose()
+    }
 }
 
 
@@ -404,7 +585,8 @@ Function SetQuickSearchPreviewContent {
 
     if ('Html' -eq $mode) {
         $PreviewHost.ActiveView = 'Html'
-        $PreviewHost.Browser.DocumentText = ConvertHtmlToPreviewDocument -Html $Content -Keyword $highlightText
+        $previewDocument = ConvertHtmlToPreviewDocument -Html $Content -Keyword $highlightText
+        SetQuickSearchWebBrowserDocument -Browser $PreviewHost.Browser -Html $previewDocument -ScrollToHighlight:($HighlightKeyword -and -not [string]::IsNullOrWhiteSpace($highlightText))
         UpdateQuickSearchPreviewHostVisibility -PreviewHost $PreviewHost
         return
     }
@@ -412,7 +594,8 @@ Function SetQuickSearchPreviewContent {
     if ('HtmlMarkdown' -eq $mode) {
         $PreviewHost.ActiveView = 'Html'
         $html = ConvertMarkdownToHtml $Content
-        $PreviewHost.Browser.DocumentText = ConvertHtmlToPreviewDocument -Html $html -Keyword $highlightText
+        $previewDocument = ConvertHtmlToPreviewDocument -Html $html -Keyword $highlightText
+        SetQuickSearchWebBrowserDocument -Browser $PreviewHost.Browser -Html $previewDocument -ScrollToHighlight:($HighlightKeyword -and -not [string]::IsNullOrWhiteSpace($highlightText))
         UpdateQuickSearchPreviewHostVisibility -PreviewHost $PreviewHost
         return
     }

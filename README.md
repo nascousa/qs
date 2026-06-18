@@ -1,8 +1,8 @@
 # QuickSearch (QS)
 
-**Version:** v1.4.40  
-**Date:** 2026-06-17  
-**Status:** Simple Windows desktop search tool for mapped team folders  
+**Version:** v1.4.44
+**Date:** 2026-06-18
+**Status:** Simple Windows desktop search tool for mapped team folders
 **ADC Standard:** 1.1.27
 
 QuickSearch is a small Windows PowerShell app for finding files on mapped shared drives. It can search by filename, search generated TEAM tags quickly, scan file contents when needed, preview matched files, and open the selected file.
@@ -22,7 +22,7 @@ Set-Location D:\Repos\QuickSearch
 PowerShell.exe -NoProfile -ExecutionPolicy Bypass -File .\src\QuickSearch.ps1
 ```
 
-The window title uses the `Version` value from `src/settings/config.json`, for example `QuickSearch v1.4.40`.
+The window title uses the `Version` value from `src/settings/config.json`, for example `QuickSearch v1.4.44`.
 
 ## Main Buttons
 
@@ -30,12 +30,15 @@ The window title uses the `Version` value from `src/settings/config.json`, for e
 - `Index` opens TEAM index settings and includes `Re-Index Team Folder`.
 - `Show Preview` / `Hide Preview` toggles the file preview pane.
 - `Settings` selects the active runtime profile.
+- `About` shows author, contact, and basic usage information.
 - `Open` opens the selected result.
+
+Prompts, settings dialogs, and progress windows open centered over the main QuickSearch window.
 
 ## Search Modes
 
 - `Filename/Tags (Quick)` is the fast path. For `TEAM`, it uses the generated index at `src/data/index.json`.
-- `Live Content Scan (Slow)` reads file contents at search time. Use it when you need to find text inside files.
+- `Content (Slow)` reads file contents at search time. Use it when you need to find text inside files.
 - `Scope` applies to `ALL` live scans. `Configured Types` scans configured folders such as TSG, SOP, and CASE. `All` scans the full selected root.
 
 If TEAM quick search says the index is missing, open `Index` and run `Re-Index Team Folder`.
@@ -55,7 +58,7 @@ The `Index` popup lets you edit:
 
 ## Preview
 
-Selecting a result opens the preview pane automatically. QS previews plain text, Markdown, and HTML files. When the selected file contains the active search keyword, the preview highlights it.
+Selecting a result opens the preview pane automatically. QS previews plain text, Markdown, and HTML files. When the selected file contains the active search keyword, the preview highlights it. Use the preview search box and Find button to highlight a different word or phrase inside the current preview.
 
 ## Settings And Profiles
 

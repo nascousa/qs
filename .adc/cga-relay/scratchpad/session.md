@@ -168,6 +168,21 @@ Use this file for task handoff notes, progress, validation evidence, blockers, r
 - Validation passed for QS 1.4.40 with recursive PowerShell parse checks for `src/`, JSON parse checks for settings/profiles/sample index, and `tests/smoke-index.ps1`.
 - No release payload or split-transfer artifact was generated for QS 1.4.40.
 - CGA incremental indexing for QS 1.4.40 could not be queued because the local MCP endpoint rejected the connection with `Missing or invalid CRYSTALS communication profile`.
+- Updated QS to 1.4.41 by adding a top-level `About` button next to `Settings`; the popup includes Author: Nate Scott (NASCO), Email: nate.scott@microsoft.com, and simple usage guidance.
+- Updated README, ADC metadata, bootstrap checks, architecture diagram, terminology, and `tests/smoke-index.ps1` for the About popup.
+- Validation passed for QS 1.4.41 with recursive PowerShell parse checks for `src/`, JSON parse checks for settings/profiles/sample index, and `tests/smoke-index.ps1`.
+- No release payload or split-transfer artifact was generated for QS 1.4.41.
+- CGA incremental indexing for QS 1.4.41 could not be queued because the local MCP endpoint rejected the connection with `Missing or invalid CRYSTALS communication profile`.
+- Updated QS to 1.4.42 by widening the keyword search box and moving the Scope, search button, Index, preview, Settings, About, and Status controls 10px left in the main Windows Forms top row.
+- Updated README, ADC metadata, and `tests/smoke-index.ps1` for the QS 1.4.42 top-row layout adjustment.
+- Validation passed for QS 1.4.42 with recursive PowerShell parse checks for `src/`, JSON parse checks for settings/profiles/sample index, `tests/smoke-index.ps1`, and `tests/smoke-payload.ps1`.
+- No release payload or split-transfer artifact was generated for QS 1.4.42.
+- CGA incremental indexing for QS 1.4.42 could not be queued because the local MCP endpoint rejected the connection with `Missing or invalid CRYSTALS communication profile`.
+- Updated QS to 1.4.43 so owner-backed prompts, settings dialogs, profile dialogs, About/error message boxes, and search/index progress windows open centered over the owning QuickSearch window.
+- Added a shared `SetQuickSearchDialogCenter` helper plus owner-aware message box wrapper, and recentered progress dialogs after their runtime height adjustments.
+- Validation passed for QS 1.4.43 with parse-only checks for changed scripts, JSON parse checks for settings/profiles, `tests/smoke-index.ps1`, a direct WinForms dialog-centering helper coordinate check, clean VS Code diagnostics, and `git diff --check`.
+- Updated QS to 1.4.44 so WebBrowser preview secondary search rewrites the preview through a dedicated document helper, marks the first HTML hit for scrolling, and uses a `Find` button with an embedded magnifying-glass bitmap instead of an emoji-only button.
+- Validation passed for QS 1.4.44 with parse-only checks for changed scripts, JSON parse checks for settings/profiles, direct HTML preview highlight helper verification, `tests/smoke-index.ps1`, clean VS Code diagnostics, and `git diff --check`.
 - Updated QS to 1.4.27 so Search button work runs through `InvokeQuickSearchWithProcessingDialog` in a background PowerShell job instead of blocking the Windows Forms UI thread.
 - Added `src/QuickSearch.Search.ps1` as a pure filesystem search helper used by both the UI path and the background search job.
 - Updated result population to batch ListBox updates with `BeginUpdate`/`AddRange`/`EndUpdate` and to log only the result count instead of writing the full result set for every item.
@@ -219,3 +234,9 @@ Use this file for task handoff notes, progress, validation evidence, blockers, r
 - Initialized `D:\Repos\QuickSearch` as a git repository on branch `main`, set `origin` to `git@github.com:nasco_microsoft/qs.git`, and created root commit `5692e36` (`Initial QuickSearch import`).
 - Pushed QS source to private GitHub repository `nasco_microsoft/qs` branch `main` using existing GitHub CLI HTTPS authentication for account `nasco_microsoft`; the local SSH `origin` remains configured as requested, but direct SSH push failed with `Permission denied (publickey)` until a valid GitHub SSH key is configured.
 - CGA-Relay activity/index recording could not be completed because the current tool surface does not expose a ContextGraph/CGA-Relay recording or changed-file indexing tool.
+
+## 2026-06-18
+
+- Updated QS to 1.4.42 by renaming the content search radio label to `Content (Slow)`, adding in-preview secondary search controls, and highlighting active search keyword substrings in result-list paths when present.
+- Preview secondary search reuses the current selected file content and can highlight a different preview keyword without rerunning the main file search.
+- Validation passed with recursive PowerShell parse checks for `src/QuickSearch*.ps1`, JSON checks for settings/profiles/sample index, `tests/smoke-index.ps1`, and clean VS Code diagnostics on touched runtime/test files.

@@ -48,7 +48,7 @@ try {
     $repoConfig = Get-Content -LiteralPath $repoConfigPath -Raw | ConvertFrom-Json
     $repoDefaultProfile = Get-Content -LiteralPath $repoDefaultProfilePath -Raw | ConvertFrom-Json
     $repoNateProfile = Get-Content -LiteralPath $repoNateProfilePath -Raw | ConvertFrom-Json
-    Assert-True -Condition ('1.4.40' -eq $repoConfig.Version) -Message 'QS version should live in src\settings\config.json Version.'
+    Assert-True -Condition ('1.4.44' -eq $repoConfig.Version) -Message 'QS version should live in src\settings\config.json Version.'
     Assert-True -Condition (200 -eq $repoConfig.MaxSearchResults) -Message 'QS config should bound default search result count.'
     Assert-True -Condition (10 -eq $repoConfig.MaxContentScanFileSizeMB) -Message 'QS config should bound default live content scan file size.'
     Assert-True -Condition ('Configured Types' -eq $repoConfig.LiveContentScanScope) -Message 'QS config should default ALL live scans to configured type roots.'
@@ -97,17 +97,44 @@ try {
 
     $mainScriptContent = Get-Content -LiteralPath $scriptPath -Raw
     Assert-True -Condition ($mainScriptContent -match 'if\s*\(\s*\$env:QS_PAUSE_ON_EXIT\s+-eq\s+''1''\s*\)\s*\{\s*Pause\s*\}') -Message 'QuickSearch.ps1 should only pause on exit when QS_PAUSE_ON_EXIT=1.'
-    Assert-True -Condition ($mainScriptContent -match 'Live Content Scan \(Slow\)') -Message 'Content-search radio label should clarify that content search is a live scan.'
+    Assert-True -Condition ($mainScriptContent -match 'Content \(Slow\)') -Message 'Content-search radio label should be concise.'
     Assert-True -Condition ($mainScriptContent -match 'Scanning file content live') -Message 'Content-search progress message should clarify that content search scans live files.'
     Assert-True -Condition ($mainScriptContent -match 'InitializeQuickSearchKeywordPlaceholder') -Message 'Keyword textbox should initialize placeholder behavior.'
     Assert-True -Condition ($mainScriptContent -match 'GetQuickSearchKeywordText') -Message 'Search should read the user keyword without treating placeholder text as input.'
     Assert-True -Condition ($mainScriptContent -match 'ComboBox_LiveScanScope') -Message 'UI should expose a Live Content Scan scope selector.'
     Assert-True -Condition ($mainScriptContent -match 'Configured Types') -Message 'UI should default Live Content Scan scope to configured type roots.'
+    Assert-True -Condition ($mainScriptContent -match 'Button_PreviewSearch') -Message 'Preview pane should expose an in-preview search button.'
+    Assert-True -Condition ($mainScriptContent -match 'TextBox_PreviewSearch') -Message 'Preview pane should expose an in-preview search textbox.'
+    Assert-True -Condition ($mainScriptContent -match '\$Button_PreviewSearch\.Text\s*=\s*''Find''') -Message 'Preview search button should use Find text.'
+    Assert-True -Condition ($mainScriptContent -match 'NewQuickSearchFindButtonIcon') -Message 'Preview search button should include an embedded magnifying-glass image.'
+    Assert-True -Condition ($mainScriptContent -match 'TextImageRelation\]::ImageBeforeText') -Message 'Preview search button should show the icon before Find text.'
+    Assert-True -Condition ($mainScriptContent -match 'Button_About') -Message 'UI should expose an About button.'
+    Assert-True -Condition ($mainScriptContent -match 'ShowQuickSearchAbout') -Message 'About button should open the About popup.'
+    Assert-True -Condition ($mainScriptContent -match '\$Label_LiveScanScope\.Location\s*=\s*New-Object System\.Drawing\.Point\(505, 10\)') -Message 'Scope label should be moved 10px left in the top row.'
+    Assert-True -Condition ($mainScriptContent -match '\$ComboBox_LiveScanScope\.Location\s*=\s*New-Object System\.Drawing\.Point\(545, 10\)') -Message 'Scope selector should be moved 10px left in the top row.'
+    Assert-True -Condition ($mainScriptContent -match '\$TextBox_Keyword\.Location\s*=\s*New-Object System\.Drawing\.Point\(670, 10\)') -Message 'Keyword textbox should be moved 10px left in the top row.'
+    Assert-True -Condition ($mainScriptContent -match '\$TextBox_Keyword\.Width\s*=\s*240') -Message 'Keyword textbox should stay widened for multi-keyword queries.'
+    Assert-True -Condition ($mainScriptContent -match '\$Button_Search\.Location\s*=\s*New-Object System\.Drawing\.Point\(920, 10\)') -Message 'Search button should align with the widened keyword textbox.'
+    Assert-True -Condition ($mainScriptContent -match '\$Button_Index\.Location\s*=\s*New-Object System\.Drawing\.Point\(1005, 10\)') -Message 'Index button should align with the shifted top-row action group.'
+    Assert-True -Condition ($mainScriptContent -match '\$Button_PreviewToggle\.Location\s*=\s*New-Object System\.Drawing\.Point\(1090, 10\)') -Message 'Preview toggle should align with the shifted top-row action group.'
+    Assert-True -Condition ($mainScriptContent -match '\$Button_Settings\.Location\s*=\s*New-Object System\.Drawing\.Point\(1205, 10\)') -Message 'Settings button should align with the shifted top-row action group.'
+    Assert-True -Condition ($mainScriptContent -match '\$Button_About\.Location\s*=\s*New-Object System\.Drawing\.Point\(1290, 10\)') -Message 'About button should align with the shifted top-row action group.'
+    Assert-True -Condition ($mainScriptContent -match '\$Button_About\.Width\s*=\s*55') -Message 'About button should leave room for the shifted Status controls.'
+    Assert-True -Condition ($mainScriptContent -match '\$Label_Status\.Location\s*=\s*New-Object System\.Drawing\.Point\(\$\(\$config\.Width - 152\), 10\)') -Message 'Status label should be moved 10px left in the top row.'
+    Assert-True -Condition ($mainScriptContent -match '\$TextBox_Status\.Location\s*=\s*New-Object System\.Drawing\.Point\(\$\(\$config\.Width - 110\), 10\)') -Message 'Status textbox should be moved 10px left in the top row.'
     Assert-True -Condition ($mainScriptContent -match '\$highlightPreviewKeyword\s*=\s*-not \[string\]::IsNullOrWhiteSpace\(\$SearchState\.Keyword\)') -Message 'Preview keyword highlighting should use the active search keyword, not only live content scan state.'
     $supportScriptContent = Get-Content -LiteralPath $supportScriptPath -Raw
+    Assert-True -Condition ($supportScriptContent -match 'Author: Nate Scott \(NASCO\)') -Message 'About popup should include the author.'
+    Assert-True -Condition ($supportScriptContent -match 'Email: nate\.scott@microsoft\.com') -Message 'About popup should include the contact email.'
+    Assert-True -Condition ($supportScriptContent -match 'Basic use:') -Message 'About popup should include simple usage guidance.'
+    Assert-True -Condition ($supportScriptContent -match 'Use Content \(Slow\)') -Message 'About popup should use the concise content-search label.'
+    Assert-True -Condition ($supportScriptContent -match 'Function SetQuickSearchDialogCenter') -Message 'QS should define a shared dialog centering helper.'
+    Assert-True -Condition ($supportScriptContent -match 'Function ShowQuickSearchMessageBox') -Message 'QS message boxes should use an owner-aware helper.'
     Assert-True -Condition ($supportScriptContent -match 'Add_Enter') -Message 'Keyword placeholder should clear when the textbox receives focus.'
     Assert-True -Condition ($supportScriptContent -match 'Add_Leave') -Message 'Keyword placeholder should restore when the textbox loses focus empty.'
     $asyncScriptContent = Get-Content -LiteralPath $asyncScriptPath -Raw
+    Assert-True -Condition ($asyncScriptContent -match 'SetQuickSearchDialogCenter -Dialog \$processingForm -Owner \$Owner') -Message 'Processing dialogs should center on the owning form before display.'
+    Assert-True -Condition ($asyncScriptContent -match 'SetQuickSearchDialogCenter -Dialog \$processingDialog -Owner \$Owner') -Message 'Resized processing dialogs should recenter on the owning form.'
     Assert-True -Condition ($asyncScriptContent -match '\$messageLabel\.Text\s*=\s*\$Message') -Message 'Background search dialog body should show only the search message.'
     Assert-True -Condition ($asyncScriptContent -notmatch 'Elapsed:') -Message 'Elapsed time should not be duplicated in the search dialog body.'
     Assert-True -Condition ($mainScriptContent -match '-Config \$config') -Message 'UI background searches should pass runtime config for live content scan filtering.'
@@ -203,8 +230,11 @@ try {
     $markdownHtml = ConvertMarkdownToHtml "# Heading`n<div>alpha <strong>HTML</strong></div>"
     Assert-True -Condition ($markdownHtml.Contains('<h1>Heading</h1>')) -Message 'Markdown HTML renderer should render headings.'
     Assert-True -Condition ($markdownHtml.Contains('<div>alpha <strong>HTML</strong></div>')) -Message 'Markdown HTML renderer should preserve safe HTML blocks.'
-    $highlightedHtml = ConvertHtmlToPreviewDocument -Html '<html><head></head><body><p>alpha beta</p><a href="javascript:alert(1)" onclick="bad()">alpha</a><script>bad()</script></body></html>' -Keyword 'alpha'
-    Assert-True -Condition ($highlightedHtml.Contains('<mark class="qs-highlight">alpha</mark> beta')) -Message 'HTML preview should highlight active search keywords.'
+    $highlightedHtml = ConvertHtmlToPreviewDocument -Html '<html><head><title>alpha hidden title</title></head><body><p>alpha beta</p><a href="javascript:alert(1)" onclick="bad()">alpha</a><script>bad()</script></body></html>' -Keyword 'alpha'
+    Assert-True -Condition ($highlightedHtml.Contains('<span id="qs-active-highlight" class="qs-highlight">alpha</span> beta')) -Message 'HTML preview should highlight active search keywords.'
+    Assert-True -Condition ($highlightedHtml.Contains('<span class="qs-highlight">alpha</span>')) -Message 'HTML preview should highlight later active search keyword matches.'
+    Assert-True -Condition (1 -eq ([regex]::Matches($highlightedHtml, 'id="qs-active-highlight"').Count)) -Message 'HTML preview should only mark one active search keyword for scrolling.'
+    Assert-True -Condition ($highlightedHtml.Contains('<title>alpha hidden title</title>')) -Message 'HTML preview secondary search should not target hidden head/title text.'
     Assert-True -Condition ($highlightedHtml.Contains('.qs-highlight{background:#fff27d;color:#111;font-weight:700;}')) -Message 'HTML preview highlights should be bold.'
     Assert-True -Condition ($highlightedHtml -notmatch '<script') -Message 'HTML preview should strip script tags.'
     Assert-True -Condition ($highlightedHtml -notmatch 'onclick') -Message 'HTML preview should strip inline event handlers.'
@@ -229,16 +259,30 @@ try {
     $previewRichTextBox = New-Object System.Windows.Forms.RichTextBox
     $previewBrowser = New-Object System.Windows.Forms.WebBrowser
     $previewToggleButton = New-Object System.Windows.Forms.Button
-    $previewHost = NewQuickSearchPreviewHost -TextBox $previewRichTextBox -Browser $previewBrowser
+    $previewSearchTextBox = New-Object System.Windows.Forms.TextBox
+    $previewSearchButton = New-Object System.Windows.Forms.Button
+    $previewHost = NewQuickSearchPreviewHost -TextBox $previewRichTextBox -Browser $previewBrowser -SearchTextBox $previewSearchTextBox -SearchButton $previewSearchButton
+    $findIcon = NewQuickSearchFindButtonIcon
+    try {
+        Assert-True -Condition (16 -eq $findIcon.Width -and 16 -eq $findIcon.Height) -Message 'Preview Find button icon should be a compact embedded bitmap.'
+    }
+    finally {
+        $findIcon.Dispose()
+    }
     SetQuickSearchPreviewPanelState -Form $previewForm -ResultsListBox $previewListBox -PreviewHost $previewHost -PreviewButton $previewToggleButton -Expanded $false
     $collapsedListWidth = $previewListBox.Width
     Assert-True -Condition (-not $previewRichTextBox.Visible) -Message 'Preview pane should be hidden when collapsed.'
     Assert-True -Condition (-not $previewBrowser.Visible) -Message 'HTML preview pane should be hidden when collapsed.'
+    Assert-True -Condition (-not $previewSearchTextBox.Visible) -Message 'Preview search textbox should be hidden when preview is collapsed.'
+    Assert-True -Condition (-not $previewSearchButton.Visible) -Message 'Preview search button should be hidden when preview is collapsed.'
     Assert-True -Condition ('Show Preview' -eq $previewToggleButton.Text) -Message 'Preview toggle should offer to show preview when collapsed.'
     Assert-True -Condition ($collapsedListWidth -gt 900) -Message 'Results list should use nearly the full width when preview is collapsed.'
 
     SetQuickSearchPreviewPanelState -Form $previewForm -ResultsListBox $previewListBox -PreviewHost $previewHost -PreviewButton $previewToggleButton -Expanded $true
     Assert-True -Condition $previewRichTextBox.Visible -Message 'Preview pane should be visible when expanded.'
+    Assert-True -Condition $previewSearchTextBox.Visible -Message 'Preview search textbox should be visible when preview is expanded.'
+    Assert-True -Condition $previewSearchButton.Visible -Message 'Preview search button should be visible when preview is expanded.'
+    Assert-True -Condition ($previewSearchButton.Width -ge 70) -Message 'Preview Find button should have room for icon and text.'
     Assert-True -Condition ('Hide Preview' -eq $previewToggleButton.Text) -Message 'Preview toggle should offer to hide preview when expanded.'
     Assert-True -Condition ($previewListBox.Width -lt $collapsedListWidth) -Message 'Results list should narrow when preview is expanded.'
     Assert-True -Condition ($previewRichTextBox.Width -gt 300) -Message 'Preview pane should have readable width when expanded.'

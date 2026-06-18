@@ -33,6 +33,7 @@ Function ShowProcessingDialog {
     $ProgressBar_Indexing.Style = [System.Windows.Forms.ProgressBarStyle]::Marquee
     $processingForm.Controls.Add($ProgressBar_Indexing)
 
+    SetQuickSearchDialogCenter -Dialog $processingForm -Owner $Owner
     if ($null -ne $Owner) {
         [void]$processingForm.Show($Owner)
     }
@@ -84,6 +85,7 @@ Function InvokeFileIndexWithProcessingDialog {
     $progressBar = @($processingDialog.Controls | Where-Object { $_ -is [System.Windows.Forms.ProgressBar] })[0]
     if ($null -ne $processingDialog -and -not $processingDialog.IsDisposed) {
         $processingDialog.ClientSize = New-Object System.Drawing.Size(420, 178)
+        SetQuickSearchDialogCenter -Dialog $processingDialog -Owner $Owner
     }
     if ($null -ne $messageLabel) {
         $messageLabel.Height = 58
@@ -212,6 +214,7 @@ Function InvokeQuickSearchWithProcessingDialog {
 
     if ($null -ne $processingDialog -and -not $processingDialog.IsDisposed) {
         $processingDialog.ClientSize = New-Object System.Drawing.Size(420, 165)
+        SetQuickSearchDialogCenter -Dialog $processingDialog -Owner $Owner
     }
     if ($null -ne $messageLabel) {
         $messageLabel.Height = 58

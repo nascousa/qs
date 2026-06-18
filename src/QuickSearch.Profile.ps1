@@ -291,7 +291,7 @@ Function ShowQuickSearchProfileSettings {
 
     $profileFiles = @(GetQuickSearchProfileFiles -ProfilesDirectory $ProfilesDirectory)
     if ($profileFiles.Count -eq 0) {
-        [System.Windows.Forms.MessageBox]::Show('No profile files were found under src\profiles.', 'Profile Settings') | Out-Null
+        ShowQuickSearchMessageBox -Owner $Owner -Message 'No profile files were found under src\profiles.' -Title 'Profile Settings'
         return $null
     }
 
@@ -354,7 +354,7 @@ Function ShowQuickSearchProfileSettings {
         $selectedName = [string]$ComboBox_Profile.SelectedItem
         $profileState = UseQuickSearchProfile -Config $Config -ProfilesDirectory $ProfilesDirectory -ProfileName $selectedName
         if (-not $profileState.Applied) {
-            [System.Windows.Forms.MessageBox]::Show("Unable to apply profile: $selectedName", 'Profile Settings') | Out-Null
+            ShowQuickSearchMessageBox -Owner $settingsForm -Message "Unable to apply profile: $selectedName" -Title 'Profile Settings'
             return
         }
         if (-not [string]::IsNullOrWhiteSpace($ConfigPath)) {
@@ -371,6 +371,7 @@ Function ShowQuickSearchProfileSettings {
     if ($selectedIndex -lt 0) { $selectedIndex = 0 }
     $ComboBox_Profile.SelectedIndex = $selectedIndex
 
+    SetQuickSearchDialogCenter -Dialog $settingsForm -Owner $Owner
     [void]$settingsForm.ShowDialog($Owner)
     return $settingsForm.Tag
 }

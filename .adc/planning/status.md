@@ -1,9 +1,9 @@
 # Project Status
 
-**Current Phase:** Simplified README, selectable profiles, unified Index popup, optimized Live Content Scan, and archived helper tools  
-**Project Version:** v1.4.40  
-**ADC Standard:** 1.1.27  
-**Date:** 2026-06-17
+**Current Phase:** refined main-window search layout, About popup, simplified README, selectable profiles, unified Index popup, optimized Live Content Scan, and archived helper tools
+**Project Version:** v1.4.42
+**ADC Standard:** 1.1.27
+**Date:** 2026-06-18
 
 ## Active Goals
 
@@ -63,10 +63,13 @@
 - 2026-06-17: Added process-local parsed JSON caching for TEAM quick index searches, materialized schema v2 matches in a single document pass, and normalized reusable index timestamp comparison after JSON parsing.
 - 2026-06-17: Moved the top `Status` label and status textbox 10px left so the controls are less crowded against the right edge.
 - 2026-06-17: Rewrote README as a shorter user guide focused on starting QS, choosing search modes, maintaining the Index popup, previewing files, and validating changes.
+- 2026-06-18: Added a top-level `About` button next to `Settings` with author, email, and basic usage guidance.
+- 2026-06-18: Widened the keyword search box and moved the Scope/search/action/status control group 10px left.
+- Validation passed for QS 1.4.42 with recursive PowerShell parse checks for `src/`, JSON parse checks for settings/profiles/sample index, `tests/smoke-index.ps1`, and `tests/smoke-payload.ps1`.
 
 ## Current Validation State
 
-- Validation passed for QS 1.4.40 with recursive PowerShell parse checks for `src/`, JSON parse checks for settings/profiles/sample index, and `tests/smoke-index.ps1`. Archived helper smoke tests are run when `src/tools/` changes.
+- Validation passed for QS 1.4.42 with recursive PowerShell parse checks for `src/`, JSON parse checks for settings/profiles/sample index, `tests/smoke-index.ps1`, and `tests/smoke-payload.ps1`. Manual UI smoke testing is still recommended on a machine with the expected mapped drives.
 - Manual UI smoke testing is still recommended on a machine with the expected mapped drives.
 
 ## Current Risks

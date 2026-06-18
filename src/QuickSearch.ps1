@@ -123,29 +123,29 @@ Function GUI()
     
     # RadioButton_SearchMethod2
     $RadioButton_SearchMethod2 = New-Object System.Windows.Forms.RadioButton
-    $RadioButton_SearchMethod2.Text = 'Live Content Scan (Slow)'
+    $RadioButton_SearchMethod2.Text = 'Content (Slow)'
     $RadioButton_SearchMethod2.Location = New-Object System.Drawing.Point(345, 10)
-    $RadioButton_SearchMethod2.Width = 165
+    $RadioButton_SearchMethod2.Width = 115
     $RadioButton_SearchMethod2.Checked = $false
     $main_form.Controls.Add($RadioButton_SearchMethod2)
         
     # TextBox_Keyword
     $TextBox_Keyword = New-Object System.Windows.Forms.TextBox
-    $TextBox_Keyword.Location = New-Object System.Drawing.Point(680, 10)
-    $TextBox_Keyword.Width = 120
+    $TextBox_Keyword.Location = New-Object System.Drawing.Point(670, 10)
+    $TextBox_Keyword.Width = 240
     InitializeQuickSearchKeywordPlaceholder -TextBox $TextBox_Keyword -Placeholder 'keyword'
     $main_form.Controls.Add($TextBox_Keyword)
 
     # Label_LiveScanScope
     $Label_LiveScanScope = New-Object System.Windows.Forms.Label
     $Label_LiveScanScope.Text = 'Scope'
-    $Label_LiveScanScope.Location = New-Object System.Drawing.Point(515, 10)
+    $Label_LiveScanScope.Location = New-Object System.Drawing.Point(505, 10)
     $Label_LiveScanScope.Width = 40
     $main_form.Controls.Add($Label_LiveScanScope)
 
     # ComboBox_LiveScanScope
     $ComboBox_LiveScanScope = New-Object System.Windows.Forms.ComboBox
-    $ComboBox_LiveScanScope.Location = New-Object System.Drawing.Point(555, 10)
+    $ComboBox_LiveScanScope.Location = New-Object System.Drawing.Point(545, 10)
     $ComboBox_LiveScanScope.Width = 115
     $ComboBox_LiveScanScope.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
     [void]$ComboBox_LiveScanScope.Items.Add('Configured Types')
@@ -163,7 +163,7 @@ Function GUI()
     # Button_Search
     $Button_Search = New-Object System.Windows.Forms.Button
     $Button_Search.Text = 'Search'
-    $Button_Search.Location = New-Object System.Drawing.Point(810, 10)
+    $Button_Search.Location = New-Object System.Drawing.Point(920, 10)
     $Button_Search.Width = 75
     $Button_Search.Height = 20
     $main_form.Controls.Add($Button_Search)
@@ -176,7 +176,7 @@ Function GUI()
     # Button_Index
     $Button_Index = New-Object System.Windows.Forms.Button
     $Button_Index.Text = 'Index'
-    $Button_Index.Location = New-Object System.Drawing.Point(895, 10)
+    $Button_Index.Location = New-Object System.Drawing.Point(1005, 10)
     $Button_Index.Width = 75
     $Button_Index.Height = 20
     $main_form.Controls.Add($Button_Index)
@@ -187,7 +187,7 @@ Function GUI()
     # Button_PreviewToggle
     $Button_PreviewToggle = New-Object System.Windows.Forms.Button
     $Button_PreviewToggle.Text = 'Show Preview'
-    $Button_PreviewToggle.Location = New-Object System.Drawing.Point(980, 10)
+    $Button_PreviewToggle.Location = New-Object System.Drawing.Point(1090, 10)
     $Button_PreviewToggle.Width = 105
     $Button_PreviewToggle.Height = 20
     $main_form.Controls.Add($Button_PreviewToggle)
@@ -198,7 +198,7 @@ Function GUI()
     # Button_Settings
     $Button_Settings = New-Object System.Windows.Forms.Button
     $Button_Settings.Text = 'Settings'
-    $Button_Settings.Location = New-Object System.Drawing.Point(1095, 10)
+    $Button_Settings.Location = New-Object System.Drawing.Point(1205, 10)
     $Button_Settings.Width = 75
     $Button_Settings.Height = 20
     $main_form.Controls.Add($Button_Settings)
@@ -206,17 +206,28 @@ Function GUI()
 
 
     # --------------------------------------------------------------------------------
+    # Button_About
+    $Button_About = New-Object System.Windows.Forms.Button
+    $Button_About.Text = 'About'
+    $Button_About.Location = New-Object System.Drawing.Point(1290, 10)
+    $Button_About.Width = 55
+    $Button_About.Height = 20
+    $main_form.Controls.Add($Button_About)
+    # --------------------------------------------------------------------------------
+
+
+    # --------------------------------------------------------------------------------
     # Label_Status
     $Label_Status = New-Object System.Windows.Forms.Label
     $Label_Status.Text = 'Status'
-    $Label_Status.Location = New-Object System.Drawing.Point($($config.Width - 142), 10)
+    $Label_Status.Location = New-Object System.Drawing.Point($($config.Width - 152), 10)
     $Label_Status.AutoSize = $true
     $main_form.Controls.Add($Label_Status)
 
     # TextBox_Status
     $TextBox_Status = New-Object System.Windows.Forms.TextBox
     $TextBox_Status.Text = 'none'
-    $TextBox_Status.Location = New-Object System.Drawing.Point($($config.Width - 100), 10)
+    $TextBox_Status.Location = New-Object System.Drawing.Point($($config.Width - 110), 10)
     $TextBox_Status.Width = 85
     $TextBox_Status.AutoSize = $true
     $TextBox_Status.ReadOnly = $true
@@ -250,15 +261,38 @@ Function GUI()
     $RichTextBox_TargetFileContent.MultiLine = $true
     $RichTextBox_TargetFileContent.ScrollBars = "Vertical"
     $main_form.Controls.Add($RichTextBox_TargetFileContent)
+
     $WebBrowser_TargetFileContent = New-Object System.Windows.Forms.WebBrowser
     $WebBrowser_TargetFileContent.ScriptErrorsSuppressed = $true
     $WebBrowser_TargetFileContent.AllowWebBrowserDrop = $false
     $WebBrowser_TargetFileContent.IsWebBrowserContextMenuEnabled = $true
     $WebBrowser_TargetFileContent.WebBrowserShortcutsEnabled = $true
     $main_form.Controls.Add($WebBrowser_TargetFileContent)
-    $PreviewHost = NewQuickSearchPreviewHost -TextBox $RichTextBox_TargetFileContent -Browser $WebBrowser_TargetFileContent
+
+    $TextBox_PreviewSearch = New-Object System.Windows.Forms.TextBox
+    $TextBox_PreviewSearch.Visible = $false
+    InitializeQuickSearchKeywordPlaceholder -TextBox $TextBox_PreviewSearch -Placeholder 'preview search'
+    $main_form.Controls.Add($TextBox_PreviewSearch)
+
+    $Button_PreviewSearch = New-Object System.Windows.Forms.Button
+    $Button_PreviewSearch.Text = 'Find'
+    $Button_PreviewSearch.Image = NewQuickSearchFindButtonIcon
+    $Button_PreviewSearch.TextImageRelation = [System.Windows.Forms.TextImageRelation]::ImageBeforeText
+    $Button_PreviewSearch.ImageAlign = [System.Drawing.ContentAlignment]::MiddleLeft
+    $Button_PreviewSearch.TextAlign = [System.Drawing.ContentAlignment]::MiddleRight
+    $Button_PreviewSearch.Padding = New-Object System.Windows.Forms.Padding(4, 0, 4, 0)
+    $Button_PreviewSearch.Visible = $false
+    $main_form.Controls.Add($Button_PreviewSearch)
+
+    $PreviewSearchToolTip = New-Object System.Windows.Forms.ToolTip
+    $PreviewSearchToolTip.SetToolTip($Button_PreviewSearch, 'Find in preview')
+    $PreviewSearchToolTip.SetToolTip($TextBox_PreviewSearch, 'Search preview')
+    $PreviewHost = NewQuickSearchPreviewHost -TextBox $RichTextBox_TargetFileContent -Browser $WebBrowser_TargetFileContent -SearchTextBox $TextBox_PreviewSearch -SearchButton $Button_PreviewSearch
     $PreviewState = [PSCustomObject]@{
         Expanded = $false
+        FilePath = ''
+        Content = ''
+        ActiveKeyword = ''
     }
     $SearchState = [PSCustomObject]@{
         Keyword = ''
@@ -444,11 +478,49 @@ Function GUI()
 
 
     # --------------------------------------------------------------------------------
+    # Button_About Add_Click event handler
+    # --------------------------------------------------------------------------------
+    $Button_About.Add_Click({
+        ShowQuickSearchAbout -Owner $main_form -Config $config
+    })
+
+
+    # --------------------------------------------------------------------------------
     # Button_PreviewToggle Add_Click event handler
     # --------------------------------------------------------------------------------
     $Button_PreviewToggle.Add_Click({
         $PreviewState.Expanded = -not $PreviewState.Expanded
         SetQuickSearchPreviewPanelState -Form $main_form -ResultsListBox $ListBox_Results -PreviewHost $PreviewHost -PreviewButton $Button_PreviewToggle -Expanded $PreviewState.Expanded
+    })
+
+    $searchPreviewContent = {
+        if ([string]::IsNullOrWhiteSpace($PreviewState.FilePath) -or [string]::IsNullOrEmpty($PreviewState.Content)) {
+            $TextBox_Status.Text = 'No preview'
+            return
+        }
+
+        $previewKeyword = GetQuickSearchKeywordText -TextBox $TextBox_PreviewSearch
+        if ([string]::IsNullOrWhiteSpace($previewKeyword)) {
+            $previewKeyword = $SearchState.Keyword
+        }
+
+        $PreviewState.ActiveKeyword = $previewKeyword
+        $highlightPreviewKeyword = -not [string]::IsNullOrWhiteSpace($previewKeyword)
+        SetQuickSearchPreviewContent -PreviewHost $PreviewHost -FilePath $PreviewState.FilePath -Content $PreviewState.Content -Keyword $previewKeyword -HighlightKeyword:$highlightPreviewKeyword
+        if ($highlightPreviewKeyword) {
+            $TextBox_Status.Text = 'Preview searched'
+        }
+        else {
+            $TextBox_Status.Text = 'Preview loaded'
+        }
+    }
+    $Button_PreviewSearch.Add_Click($searchPreviewContent)
+    $TextBox_PreviewSearch.Add_KeyDown({
+        param($sender, $eventArgs)
+        if ($eventArgs.KeyCode -eq [System.Windows.Forms.Keys]::Enter) {
+            & $searchPreviewContent
+            $eventArgs.SuppressKeyPress = $true
+        }
     })
     
 
@@ -474,6 +546,11 @@ Function GUI()
         {
             $TextBox_TargetFilePath.Text = $SelectedItemPath
             $TargetFileContent = Get-Content -LiteralPath $TextBox_TargetFilePath.Text -Raw
+            $PreviewState.FilePath = $SelectedItemPath
+            $PreviewState.Content = $TargetFileContent
+            $PreviewState.ActiveKeyword = $SearchState.Keyword
+            $TextBox_PreviewSearch.Text = ''
+            SetQuickSearchKeywordPlaceholder -TextBox $TextBox_PreviewSearch
             $PreviewState.Expanded = $true
             SetQuickSearchPreviewPanelState -Form $main_form -ResultsListBox $ListBox_Results -PreviewHost $PreviewHost -PreviewButton $Button_PreviewToggle -Expanded $PreviewState.Expanded
             $highlightPreviewKeyword = -not [string]::IsNullOrWhiteSpace($SearchState.Keyword)
@@ -514,14 +591,14 @@ Function GUI()
             $e.Graphics.FillRectangle([System.Drawing.Brushes]::White, $e.Bounds)
         }
 
-        $ItemText = $ListBox_Results.Items[$e.Index]
+        $ItemText = [string]$ListBox_Results.Items[$e.Index]
         $font = [System.Drawing.SystemFonts]::DefaultFont
         
         if($e.State -band [System.Windows.Forms.DrawItemState]::Selected){
             $font = [System.Drawing.Font]::new($font, [System.Drawing.FontStyle]::Bold)
-            $e.Graphics.DrawString($ItemText, $font, [System.Drawing.Brushes]::DarkBlue, $e.Bounds.X, $e.Bounds.Y)
+            DrawQuickSearchHighlightedListText -Graphics $e.Graphics -Bounds $e.Bounds -Text $ItemText -Keyword $SearchState.Keyword -Font $font -TextBrush ([System.Drawing.Brushes]::DarkBlue)
         }else{
-            $e.Graphics.DrawString($ItemText, $ListBox_Results.Font, [System.Drawing.Brushes]::Black, $e.Bounds.X, $e.Bounds.Y)
+            DrawQuickSearchHighlightedListText -Graphics $e.Graphics -Bounds $e.Bounds -Text $ItemText -Keyword $SearchState.Keyword -Font $ListBox_Results.Font -TextBrush ([System.Drawing.Brushes]::Black)
         }
     })
 

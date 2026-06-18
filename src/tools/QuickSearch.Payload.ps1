@@ -201,6 +201,7 @@ Function GetQuickSearchDefaultPayloadSourcePath {
         (Join-Path -Path $sourceRoot -ChildPath 'QuickSearch.IndexStatus.ps1'),
         (Join-Path -Path $sourceRoot -ChildPath 'QuickSearch.IndexPolicy.ps1'),
         (Join-Path -Path $sourceRoot -ChildPath 'QuickSearch.IndexResume.ps1'),
+        (Join-Path -Path $sourceRoot -ChildPath 'QuickSearch.Query.ps1'),
         (Join-Path -Path $sourceRoot -ChildPath 'QuickSearch.Index.ps1'),
         (Join-Path -Path $sourceRoot -ChildPath 'QuickSearch.Search.ps1'),
         (Join-Path -Path $sourceRoot -ChildPath 'QuickSearch.Async.ps1'),

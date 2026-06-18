@@ -2,6 +2,8 @@ flowchart LR
   User[Windows user] --> SearchUI[src/QuickSearch.ps1 Windows Forms UI]
   SearchUI --> Support[src/QuickSearch.Support.ps1 support functions]
   SearchUI --> Config[src/settings/config.json and src/profiles/*.profile.json]
+  SearchUI --> AboutPopup[About popup]
+  Support --> AboutPopup
   SearchUI --> IndexSettingsUi[Index settings popup]
   Support --> IndexSettingsUi
   IndexSettingsUi --> Config

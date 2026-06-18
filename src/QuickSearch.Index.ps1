@@ -5,6 +5,8 @@ Builds and searches QuickSearch TEAM file indexes.
 
 $IndexStatusScriptPath = Join-Path -Path $PSScriptRoot -ChildPath 'QuickSearch.IndexStatus.ps1'
 . $IndexStatusScriptPath
+$QueryScriptPath = Join-Path -Path $PSScriptRoot -ChildPath 'QuickSearch.Query.ps1'
+. $QueryScriptPath
 $IndexPolicyScriptPath = Join-Path -Path $PSScriptRoot -ChildPath 'QuickSearch.IndexPolicy.ps1'
 . $IndexPolicyScriptPath
 $IndexResumeScriptPath = Join-Path -Path $PSScriptRoot -ChildPath 'QuickSearch.IndexResume.ps1'
@@ -493,6 +495,74 @@ Function IntersectStringSets {
 }
 
 
+Function CopyStringSet {
+    param([hashtable]$Set)
+
+    $copy = NewStringSet
+    foreach ($key in $Set.Keys) {
+        $copy[$key] = $true
+    }
+
+    return $copy
+}
+
+
+Function RemoveStringSetValues {
+    param(
+        [hashtable]$Set,
+        [hashtable]$Values
+    )
+
+    foreach ($key in $Values.Keys) {
+        if ($Set.ContainsKey($key)) {
+            $Set.Remove($key)
+        }
+    }
+}
+
+
+Function AddStringSetKeys {
+    param(
+        [hashtable]$Set,
+        [hashtable]$Values
+    )
+
+    foreach ($key in $Values.Keys) {
+        $Set[$key] = $true
+    }
+}
+
+
+Function GetFileIndexDocumentSearchText {
+    param([object]$Document)
+
+    $parts = New-Object System.Collections.ArrayList
+    foreach ($propertyName in @('name', 'Filename', 'path', 'FilePath')) {
+        $value = [string](GetFileIndexPropertyValue -Value $Document -Name $propertyName)
+        if (-not [string]::IsNullOrWhiteSpace($value)) {
+            [void]$parts.Add($value)
+        }
+    }
+
+    foreach ($tag in @((GetFileIndexPropertyValue -Value $Document -Name 'tags'))) {
+        if (-not [string]::IsNullOrWhiteSpace([string]$tag)) {
+            [void]$parts.Add([string]$tag)
+        }
+    }
+
+    $tagCounts = GetFileIndexPropertyValue -Value $Document -Name 'tagCounts'
+    if ($null -ne $tagCounts) {
+        foreach ($property in @($tagCounts.PSObject.Properties)) {
+            if (-not [string]::IsNullOrWhiteSpace($property.Name)) {
+                [void]$parts.Add($property.Name)
+            }
+        }
+    }
+
+    return (@($parts) -join ' ')
+}
+
+
 Function GetFileIndexTermProperties {
     param(
         [object]$Terms
@@ -585,26 +655,39 @@ Function SearchInvertedFileIndex {
         return @()
     }
 
-    $queryTerms = @(GetSearchTermsFromText $Keyword)
-    $matchingIds = $null
-    foreach ($queryTerm in $queryTerms) {
-        $termIds = GetFileIndexTermDocumentIdSet -Terms $terms -Term $queryTerm
-        if ($null -eq $matchingIds) {
-            $matchingIds = $termIds
-        }
-        else {
-            $matchingIds = IntersectStringSets -Left $matchingIds -Right $termIds
-        }
+    $query = ConvertToQuickSearchBooleanQuery -Text $Keyword
+    if (-not (TestQuickSearchBooleanQueryHasTerms -Query $query)) { return @() }
+
+    $allDocumentIds = NewStringSet
+    foreach ($document in $documents) {
+        AddStringSetValue -Set $allDocumentIds -Value ([string](GetFileIndexPropertyValue -Value $document -Name 'id'))
     }
 
     $candidateIds = NewStringSet
-    if ($null -ne $matchingIds) {
-        foreach ($matchingDocumentId in $matchingIds.Keys) {
-            $candidateIds[$matchingDocumentId] = $true
+    foreach ($group in @($query.Groups)) {
+        $matchingIds = $null
+        foreach ($queryTerm in @($group.Includes)) {
+            $termIds = GetFileIndexTermDocumentIdSet -Terms $terms -Term ([string]$queryTerm)
+            if ($null -eq $matchingIds) {
+                $matchingIds = $termIds
+            }
+            else {
+                $matchingIds = IntersectStringSets -Left $matchingIds -Right $termIds
+            }
         }
+
+        if ($null -eq $matchingIds) {
+            $matchingIds = CopyStringSet -Set $allDocumentIds
+        }
+
+        foreach ($queryTerm in @($group.Excludes)) {
+            $excludedIds = GetFileIndexTermDocumentIdSet -Terms $terms -Term ([string]$queryTerm)
+            RemoveStringSetValues -Set $matchingIds -Values $excludedIds
+        }
+
+        AddStringSetKeys -Set $candidateIds -Values $matchingIds
     }
 
-    $keywordPattern = GetWildcardContainsPattern $Keyword
     $matchedPaths = New-Object System.Collections.ArrayList
     $seenPaths = @{}
     foreach ($document in $documents) {
@@ -619,11 +702,10 @@ Function SearchInvertedFileIndex {
             $documentPath = [string](GetFileIndexPropertyValue -Value $document -Name 'FilePath')
         }
 
-        if ($documentName -like $keywordPattern -or $documentPath -like $keywordPattern) {
-            AddStringSetValue -Set $candidateIds -Value $documentId
-        }
-
         if (-not $candidateIds.ContainsKey($documentId)) {
+            continue
+        }
+        if (-not (TestQuickSearchBooleanQueryText -Query $query -Text (GetFileIndexDocumentSearchText -Document $document))) {
             continue
         }
 
@@ -647,7 +729,8 @@ Function SearchLegacyFileIndex {
         [int]$MaxResults = 0
     )
 
-    $keywordPattern = GetWildcardContainsPattern $Keyword
+    $query = ConvertToQuickSearchBooleanQuery -Text $Keyword
+    if (-not (TestQuickSearchBooleanQueryHasTerms -Query $query)) { return @() }
     $matchedPaths = New-Object System.Collections.ArrayList
 
     foreach ($item in $IndexItems) {
@@ -678,15 +761,8 @@ Function SearchLegacyFileIndex {
             }
         }
 
-        $matchesTag = $false
-        foreach ($tagWord in $tagWords) {
-            if ([string]$tagWord -like $keywordPattern) {
-                $matchesTag = $true
-                break
-            }
-        }
-
-        if ($itemName -like $keywordPattern -or $itemPath -like $keywordPattern -or $matchesTag) {
+        $itemSearchText = (@($itemName, $itemPath) + @($tagWords)) -join ' '
+        if (TestQuickSearchBooleanQueryText -Query $query -Text $itemSearchText) {
             if (-not $matchedPaths.Contains($itemPath)) {
                 [void]$matchedPaths.Add($itemPath)
                 if ($MaxResults -gt 0 -and $matchedPaths.Count -ge $MaxResults) {

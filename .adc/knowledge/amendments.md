@@ -48,3 +48,5 @@ All material changes to rules inside `.adc/` should be reviewed as ADC amendment
 - 2026-06-17: Updated QS project context to version 1.4.38 for process-local TEAM quick index JSON caching, single-pass schema v2 result materialization, and reusable index timestamp normalization.
 - 2026-06-17: Updated QS project context to version 1.4.39 for moving the top `Status` controls 10px left in the Windows Forms UI.
 - 2026-06-17: Updated QS project context to version 1.4.40 for simplifying README into a concise user guide.
+- 2026-06-18: Updated QS project context to version 1.4.41 for adding a top-level About popup with author, contact email, and simple usage guidance.
+- 2026-06-18: Updated QS project context to version 1.4.42 for widening the keyword search box and moving the Scope/search/action/status control group 10px left.

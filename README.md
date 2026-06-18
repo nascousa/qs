@@ -1,11 +1,20 @@
 # QuickSearch (QS)
 
-**Version:** v1.4.44
-**Date:** 2026-06-18
-**Status:** Simple Windows desktop search tool for mapped team folders
-**ADC Standard:** 1.1.27
+**Version:** v1.4.45  
+**Date:** 2026-06-18  
+**Status:** Air-gapped, pure PowerShell desktop search tool for mapped team folders  
+**ADC Standard:** 1.1.27  
 
-QuickSearch is a small Windows PowerShell app for finding files on mapped shared drives. It can search by filename, search generated TEAM tags quickly, scan file contents when needed, preview matched files, and open the selected file.
+QuickSearch is built for air-gapped and offline Windows environments. It is written in PowerShell, runs from local files, and does not require third-party libraries, package managers, installers, databases, web services, or cloud services.
+
+QuickSearch helps find files on mapped shared drives. It can search by filename, search generated TEAM tags quickly, scan file contents when needed, preview matched files, and open the selected file.
+
+## Air-Gapped Fit
+
+- Pure PowerShell desktop utility using built-in Windows/.NET capabilities.
+- No third-party runtime libraries or external services are required for normal use.
+- No internet access is required after the files are present on the target machine.
+- Settings, profiles, and generated indexes are local JSON files under `src/`.
 
 ## Start
 
@@ -22,7 +31,7 @@ Set-Location D:\Repos\QuickSearch
 PowerShell.exe -NoProfile -ExecutionPolicy Bypass -File .\src\QuickSearch.ps1
 ```
 
-The window title uses the `Version` value from `src/settings/config.json`, for example `QuickSearch v1.4.44`.
+The window title uses the `Version` value from `src/settings/config.json`, for example `QuickSearch v1.4.45`.
 
 ## Main Buttons
 
@@ -55,6 +64,8 @@ The `Index` popup lets you edit:
 - ignored folders
 
 `Re-Index Team Folder` rebuilds `src/data/index.json`. The index stores filenames, paths, and generated top-word tags. It does not store full file contents.
+
+The Index popup also shows current index data such as indexed file count, generated tag count, search term count, schema version, update time, and file size.
 
 ## Preview
 

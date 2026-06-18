@@ -1,7 +1,7 @@
 ---
 project-name: "QuickSearch"
 project-alias: "QS"
-version: "1.4.44"
+version: "1.4.45"
 adc-standard-version: "1.1.27"
 description: "A Windows PowerShell desktop utility for searching mapped shared-drive documents, rendering collapsible text, HTML, and Markdown previews, and maintaining an integrated streaming TEAM inverted tag index."
 tech-stack:

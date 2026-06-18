@@ -548,6 +548,121 @@ Function ShowQuickSearchAbout {
     ShowQuickSearchMessageBox -Owner $Owner -Message $message -Title 'About QuickSearch'
 }
 
+
+Function ConvertQuickSearchByteSizeText {
+    param(
+        [long]$Bytes
+    )
+
+    if ($Bytes -ge 1048576) {
+        return ('{0:N2} MB' -f ($Bytes / 1048576))
+    }
+
+    if ($Bytes -ge 1024) {
+        return ('{0:N1} KB' -f ($Bytes / 1024))
+    }
+
+    return ("$Bytes bytes")
+}
+
+
+Function GetQuickSearchPropertyCount {
+    param(
+        [object]$Value
+    )
+
+    if ($null -eq $Value) {
+        return 0
+    }
+
+    if ($Value -is [System.Collections.IDictionary]) {
+        return $Value.Count
+    }
+
+    return @($Value.PSObject.Properties).Count
+}
+
+
+Function GetQuickSearchIndexSummaryText {
+    param(
+        [string]$IndexFilePath
+    )
+
+    $newLine = [Environment]::NewLine
+    if ([string]::IsNullOrWhiteSpace($IndexFilePath)) {
+        return 'Status: Index file is not configured.'
+    }
+
+    if (-not (Test-Path -LiteralPath $IndexFilePath -PathType Leaf)) {
+        return @(
+            'Status: Missing',
+            "Index file: $IndexFilePath",
+            'Files indexed: 0',
+            'Unique generated tags: 0',
+            'Search terms: 0'
+        ) -join $newLine
+    }
+
+    try {
+        $indexFile = Get-Item -LiteralPath $IndexFilePath -ErrorAction Stop
+        $indexData = ReadCachedFileIndexData -IndexFilePath $indexFile.FullName
+        if ($null -eq $indexData) {
+            throw 'Index data could not be read.'
+        }
+
+        $schemaVersion = GetFileIndexPropertyValue -Value $indexData -Name 'schemaVersion'
+        if ($null -eq $schemaVersion) { $schemaVersion = 'legacy' }
+
+        $documentsValue = GetFileIndexPropertyValue -Value $indexData -Name 'documents'
+        $documents = @()
+        if ($null -ne $documentsValue) { $documents = @($documentsValue) }
+
+        $termsValue = GetFileIndexPropertyValue -Value $indexData -Name 'terms'
+        $searchTermCount = GetQuickSearchPropertyCount -Value $termsValue
+        $uniqueGeneratedTags = @{}
+        $tagAssignmentCount = 0
+        foreach ($document in $documents) {
+            $tagsValue = GetFileIndexPropertyValue -Value $document -Name 'tags'
+            if ($null -eq $tagsValue) {
+                continue
+            }
+
+            foreach ($tag in @($tagsValue)) {
+                if (-not [string]::IsNullOrWhiteSpace([string]$tag)) {
+                    $uniqueGeneratedTags[[string]$tag] = $true
+                    $tagAssignmentCount++
+                }
+            }
+        }
+
+        $createdUtc = GetFileIndexPropertyValue -Value $indexData -Name 'createdUtc'
+        if ($null -eq $createdUtc) { $createdUtc = 'unknown' }
+        $createdUtcText = [string]$createdUtc
+        if ($createdUtc -is [datetime]) {
+            $createdUtcText = $createdUtc.ToUniversalTime().ToString('yyyy-MM-dd HH:mm:ss') + 'Z'
+        }
+
+        return @(
+            'Status: Ready',
+            "Files indexed: $($documents.Count)",
+            "Unique generated tags: $($uniqueGeneratedTags.Count)",
+            "Search terms: $searchTermCount",
+            "Tag assignments: $tagAssignmentCount",
+            "Schema version: $schemaVersion",
+            "Created UTC: $createdUtcText",
+            "Updated: $($indexFile.LastWriteTime.ToString('yyyy-MM-dd HH:mm:ss'))",
+            "Index size: $(ConvertQuickSearchByteSizeText -Bytes $indexFile.Length)"
+        ) -join $newLine
+    }
+    catch {
+        return @(
+            'Status: Error reading index data',
+            "Index file: $IndexFilePath",
+            "Error: $($_.Exception.Message)"
+        ) -join $newLine
+    }
+}
+
 Function ShowIndexSettings {
     param(
         [System.Windows.Forms.Form]$Owner,
@@ -559,7 +674,7 @@ Function ShowIndexSettings {
 
     $settingsForm = New-Object System.Windows.Forms.Form
     $settingsForm.Text = 'Index Settings'
-    $settingsForm.ClientSize = New-Object System.Drawing.Size(660, 390)
+    $settingsForm.ClientSize = New-Object System.Drawing.Size(660, 430)
     $settingsForm.AutoSize = $false
     $settingsForm.AutoScaleMode = [System.Windows.Forms.AutoScaleMode]::Dpi
     $settingsForm.FormBorderStyle = 'FixedDialog'
@@ -659,29 +774,49 @@ Function ShowIndexSettings {
     $TextBox_IgnoredFolders.Width = $inputWidth
     $settingsForm.Controls.Add($TextBox_IgnoredFolders)
 
+    $Label_IndexData = New-Object System.Windows.Forms.Label
+    $Label_IndexData.Text = 'Index data'
+    $Label_IndexData.Location = New-Object System.Drawing.Point($labelLeft, 270)
+    $Label_IndexData.Width = $labelWidth
+    $settingsForm.Controls.Add($Label_IndexData)
+
+    $TextBox_IndexData = New-Object System.Windows.Forms.TextBox
+    $TextBox_IndexData.Location = New-Object System.Drawing.Point($inputLeft, 268)
+    $TextBox_IndexData.Width = $inputWidth
+    $TextBox_IndexData.Height = 82
+    $TextBox_IndexData.Multiline = $true
+    $TextBox_IndexData.ReadOnly = $true
+    $TextBox_IndexData.ScrollBars = [System.Windows.Forms.ScrollBars]::Vertical
+    $settingsForm.Controls.Add($TextBox_IndexData)
+
     $Label_Status = New-Object System.Windows.Forms.Label
     $Label_Status.Text = 'Ready'
-    $Label_Status.Location = New-Object System.Drawing.Point($labelLeft, 270)
+    $Label_Status.Location = New-Object System.Drawing.Point($labelLeft, 362)
     $Label_Status.Width = 620
     $settingsForm.Controls.Add($Label_Status)
 
     $Button_Save = New-Object System.Windows.Forms.Button
     $Button_Save.Text = 'Save'
-    $Button_Save.Location = New-Object System.Drawing.Point(230, 325)
+    $Button_Save.Location = New-Object System.Drawing.Point(470, 395)
     $Button_Save.Width = 80
     $settingsForm.Controls.Add($Button_Save)
 
     $Button_RebuildIndex = New-Object System.Windows.Forms.Button
     $Button_RebuildIndex.Text = 'Re-Index Team Folder'
-    $Button_RebuildIndex.Location = New-Object System.Drawing.Point(320, 325)
+    $Button_RebuildIndex.Location = New-Object System.Drawing.Point($labelLeft, 395)
     $Button_RebuildIndex.Width = 150
     $settingsForm.Controls.Add($Button_RebuildIndex)
 
     $Button_Close = New-Object System.Windows.Forms.Button
     $Button_Close.Text = 'Close'
-    $Button_Close.Location = New-Object System.Drawing.Point(480, 325)
+    $Button_Close.Location = New-Object System.Drawing.Point(560, 395)
     $Button_Close.Width = 80
     $settingsForm.Controls.Add($Button_Close)
+
+    $refreshIndexData = {
+        $TextBox_IndexData.Text = GetQuickSearchIndexSummaryText -IndexFilePath $IndexFilePath
+    }
+    & $refreshIndexData
 
     $saveSettings = {
         SetConfigValue -Config $Config -Name 'TeamPath' -Value $TextBox_TeamPath.Text.Trim()
@@ -693,6 +828,7 @@ Function ShowIndexSettings {
         SaveConfig -Config $Config -ConfigPath $ConfigPath
         $TextBox_ResolvedPath.Text = ResolveConfiguredPath -DriveLetter $DriveLetter -PathTemplate $Config.TeamPath
         $Label_Status.Text = "Saved to $ConfigPath"
+        & $refreshIndexData
     }
 
     $TextBox_TeamPath.Add_TextChanged({
@@ -722,6 +858,7 @@ Function ShowIndexSettings {
         }
         if ($created) {
             $Label_Status.Text = "Index rebuilt: $IndexFilePath"
+            & $refreshIndexData
         }
         else {
             $Label_Status.Text = 'Index rebuild failed.'

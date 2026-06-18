@@ -48,7 +48,7 @@ try {
     $repoConfig = Get-Content -LiteralPath $repoConfigPath -Raw | ConvertFrom-Json
     $repoDefaultProfile = Get-Content -LiteralPath $repoDefaultProfilePath -Raw | ConvertFrom-Json
     $repoNateProfile = Get-Content -LiteralPath $repoNateProfilePath -Raw | ConvertFrom-Json
-    Assert-True -Condition ('1.4.44' -eq $repoConfig.Version) -Message 'QS version should live in src\settings\config.json Version.'
+    Assert-True -Condition ('1.4.45' -eq $repoConfig.Version) -Message 'QS version should live in src\settings\config.json Version.'
     Assert-True -Condition (200 -eq $repoConfig.MaxSearchResults) -Message 'QS config should bound default search result count.'
     Assert-True -Condition (10 -eq $repoConfig.MaxContentScanFileSizeMB) -Message 'QS config should bound default live content scan file size.'
     Assert-True -Condition ('Configured Types' -eq $repoConfig.LiveContentScanScope) -Message 'QS config should default ALL live scans to configured type roots.'
@@ -69,6 +69,14 @@ try {
     Assert-True -Condition (2 -eq $sampleIndex.schemaVersion) -Message 'Index sample should use schemaVersion 2.'
     $sampleIndexMatches = @(SearchFileIndex -IndexFilePath $repoSampleIndexPath -Keyword 'runbook')
     Assert-True -Condition ($sampleIndexMatches -contains 'D:\Example\Orcas_Main\team\runbook.md') -Message 'Index sample should be searchable.'
+    $sampleIndexSummary = GetQuickSearchIndexSummaryText -IndexFilePath $repoSampleIndexPath
+    Assert-True -Condition ($sampleIndexSummary -match 'Files indexed: 2') -Message 'Index summary should report indexed file count.'
+    Assert-True -Condition ($sampleIndexSummary -match 'Unique generated tags: 6') -Message 'Index summary should report unique generated tag count.'
+    Assert-True -Condition ($sampleIndexSummary -match 'Search terms: 7') -Message 'Index summary should report search term count.'
+    Assert-True -Condition ($sampleIndexSummary -match 'Tag assignments: 6') -Message 'Index summary should report generated tag assignments.'
+    Assert-True -Condition ($sampleIndexSummary -match 'Schema version: 2') -Message 'Index summary should report schema version.'
+    $missingIndexSummary = GetQuickSearchIndexSummaryText -IndexFilePath (Join-Path -Path $testRoot -ChildPath 'missing-index.json')
+    Assert-True -Condition ($missingIndexSummary -match 'Status: Missing') -Message 'Index summary should report missing index files.'
 
     $profileFiles = @(GetQuickSearchProfileFiles -ProfilesDirectory $repoProfilesPath)
     $profileFileNames = @($profileFiles | ForEach-Object { $_.Name })
@@ -130,6 +138,11 @@ try {
     Assert-True -Condition ($supportScriptContent -match 'Use Content \(Slow\)') -Message 'About popup should use the concise content-search label.'
     Assert-True -Condition ($supportScriptContent -match 'Function SetQuickSearchDialogCenter') -Message 'QS should define a shared dialog centering helper.'
     Assert-True -Condition ($supportScriptContent -match 'Function ShowQuickSearchMessageBox') -Message 'QS message boxes should use an owner-aware helper.'
+    Assert-True -Condition ($supportScriptContent -match 'Function GetQuickSearchIndexSummaryText') -Message 'Index Settings should be able to summarize current index data.'
+    Assert-True -Condition ($supportScriptContent -match '\$Label_IndexData\.Text\s*=\s*''Index data''') -Message 'Index Settings should show an index data area.'
+    Assert-True -Condition ($supportScriptContent -match '\$Button_RebuildIndex\.Location\s*=\s*New-Object System\.Drawing\.Point\(\$labelLeft, 395\)') -Message 'Re-Index button should be positioned at the lower-left of Index Settings.'
+    Assert-True -Condition ($supportScriptContent -match '\$Button_Save\.Location\s*=\s*New-Object System\.Drawing\.Point\(470, 395\)') -Message 'Save button should be positioned at the lower-right of Index Settings.'
+    Assert-True -Condition ($supportScriptContent -match '\$Button_Close\.Location\s*=\s*New-Object System\.Drawing\.Point\(560, 395\)') -Message 'Close button should be positioned at the lower-right of Index Settings.'
     Assert-True -Condition ($supportScriptContent -match 'Add_Enter') -Message 'Keyword placeholder should clear when the textbox receives focus.'
     Assert-True -Condition ($supportScriptContent -match 'Add_Leave') -Message 'Keyword placeholder should restore when the textbox loses focus empty.'
     $asyncScriptContent = Get-Content -LiteralPath $asyncScriptPath -Raw

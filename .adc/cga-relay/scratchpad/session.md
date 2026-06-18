@@ -188,6 +188,16 @@ Use this file for task handoff notes, progress, validation evidence, blockers, r
 - Updated QS to 1.4.46 so the main config TEAM path defaults to the shared `Orcas_Main\Team` root while selected profiles can still override it.
 - Validation passed for QS 1.4.46 with parse-only checks, JSON parse checks for settings/profiles, `tests/smoke-index.ps1`, clean VS Code diagnostics, version residue check, and `git diff --check`.
 - Updated README positioning to emphasize QS is intended for air-gapped/offline Windows environments, is written in pure PowerShell, and does not require third-party libraries or external services.
+- Updated QS to 1.4.47 so search results display each file path with last modified and last accessed timestamps, while Open/Preview still use the underlying real path. Added a simple result filter textbox plus Clear button above the result list.
+- Validation passed for QS 1.4.47 with parse-only checks, JSON parse checks for settings/profiles, `tests/smoke-index.ps1`, clean VS Code diagnostics, and `git diff --check`.
+- Updated QS to 1.4.48 so result items also include created time and the results pane has isolated sort radio buttons for Name A-Z, Name Z-A, Modified, Created, and Accessed. Date sorts show newest items first and combine with the Filter box.
+- Validation passed for QS 1.4.48 with parse-only checks, JSON parse checks for settings/profiles, `tests/smoke-index.ps1`, clean VS Code diagnostics, and `git diff --check`.
+- Updated QS to 1.4.49 so result rows put date metadata before the path, long visible paths are shortened with `...`, horizontal result scrolling is disabled, and hovering a result shows the full path in a tooltip.
+- Validation passed for QS 1.4.49 with parse-only checks, JSON parse checks for settings/profiles, `tests/smoke-index.ps1`, clean VS Code diagnostics, and `git diff --check`.
+- Updated QS to 1.4.50 by removing Accessed time and the Accessed sort option from result rows, adding boolean result filtering with `and`, `or`, `not`, and backtick escape for literal operator words, and documenting the filter syntax in About.
+- Validation passed for QS 1.4.50 with parse-only checks, JSON parse checks for settings/profiles, `tests/smoke-index.ps1`, clean VS Code diagnostics, Accessed residue check, and `git diff --check`.
+- Updated QS to 1.4.51 by adding README screenshots from `src/assets/` for the result filter/sort/preview view and the Index Settings indexing-progress view.
+- Validation passed for QS 1.4.51 with parse-only checks, JSON parse checks for settings/profiles, `tests/smoke-index.ps1`, clean VS Code diagnostics, screenshot path existence checks, and `git diff --check`.
 - Updated QS to 1.4.27 so Search button work runs through `InvokeQuickSearchWithProcessingDialog` in a background PowerShell job instead of blocking the Windows Forms UI thread.
 - Added `src/QuickSearch.Search.ps1` as a pure filesystem search helper used by both the UI path and the background search job.
 - Updated result population to batch ListBox updates with `BeginUpdate`/`AddRange`/`EndUpdate` and to log only the result count instead of writing the full result set for every item.

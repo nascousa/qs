@@ -48,7 +48,7 @@ try {
     $repoConfig = Get-Content -LiteralPath $repoConfigPath -Raw | ConvertFrom-Json
     $repoDefaultProfile = Get-Content -LiteralPath $repoDefaultProfilePath -Raw | ConvertFrom-Json
     $repoNateProfile = Get-Content -LiteralPath $repoNateProfilePath -Raw | ConvertFrom-Json
-    Assert-True -Condition ('1.4.46' -eq $repoConfig.Version) -Message 'QS version should live in src\settings\config.json Version.'
+    Assert-True -Condition ('1.4.51' -eq $repoConfig.Version) -Message 'QS version should live in src\settings\config.json Version.'
     Assert-True -Condition (':\Orcas_Main\Team\' -eq $repoConfig.TeamPath) -Message 'QS config should default TEAM indexing to the shared Team root.'
     Assert-True -Condition (200 -eq $repoConfig.MaxSearchResults) -Message 'QS config should bound default search result count.'
     Assert-True -Condition (10 -eq $repoConfig.MaxContentScanFileSizeMB) -Message 'QS config should bound default live content scan file size.'
@@ -112,6 +112,22 @@ try {
     Assert-True -Condition ($mainScriptContent -match 'GetQuickSearchKeywordText') -Message 'Search should read the user keyword without treating placeholder text as input.'
     Assert-True -Condition ($mainScriptContent -match 'ComboBox_LiveScanScope') -Message 'UI should expose a Live Content Scan scope selector.'
     Assert-True -Condition ($mainScriptContent -match 'Configured Types') -Message 'UI should default Live Content Scan scope to configured type roots.'
+    Assert-True -Condition ($mainScriptContent -match 'TextBox_ResultFilter') -Message 'UI should expose a result filter textbox.'
+    Assert-True -Condition ($mainScriptContent -match 'Button_ClearResultFilter') -Message 'UI should expose a clear filter button.'
+    Assert-True -Condition ($mainScriptContent -match 'Panel_ResultSort') -Message 'Result sort radio buttons should live in an isolated panel.'
+    Assert-True -Condition ($mainScriptContent -match '\$ListBox_Results\.HorizontalScrollbar\s*=\s*\$false') -Message 'Result list should use ellipsis instead of horizontal scrolling for long paths.'
+    Assert-True -Condition ($mainScriptContent -match 'ResultListToolTip') -Message 'Result list should expose a hover tooltip for full paths.'
+    Assert-True -Condition ($mainScriptContent -match 'Add_MouseMove') -Message 'Result list should update the full-path tooltip on hover.'
+    Assert-True -Condition ($mainScriptContent -match 'RadioButton_SortNameAsc') -Message 'UI should expose Name A-Z sort.'
+    Assert-True -Condition ($mainScriptContent -match 'RadioButton_SortNameDesc') -Message 'UI should expose Name Z-A sort.'
+    Assert-True -Condition ($mainScriptContent -match 'RadioButton_SortModified') -Message 'UI should expose modified-time sort.'
+    Assert-True -Condition ($mainScriptContent -match 'RadioButton_SortCreated') -Message 'UI should expose created-time sort.'
+    Assert-True -Condition ($mainScriptContent -notmatch 'RadioButton_SortAccessed') -Message 'UI should not expose accessed-time sort.'
+    Assert-True -Condition ($mainScriptContent -match 'NewQuickSearchResultItem') -Message 'Search results should be wrapped with file metadata for display.'
+    Assert-True -Condition ($mainScriptContent -match 'SelectQuickSearchResultItems') -Message 'Result list should support simple text filtering.'
+    Assert-True -Condition ($mainScriptContent -match 'SortQuickSearchResultItems') -Message 'Result list should support simple radio-button sorting.'
+    Assert-True -Condition ($mainScriptContent -match 'GetQuickSearchResultItemDisplayTextForWidth') -Message 'Result drawing should shorten long paths to fit the visible list width.'
+    Assert-True -Condition ($mainScriptContent -match 'GetQuickSearchResultItemPath') -Message 'Open and preview actions should read the real path from result items.'
     Assert-True -Condition ($mainScriptContent -match 'Button_PreviewSearch') -Message 'Preview pane should expose an in-preview search button.'
     Assert-True -Condition ($mainScriptContent -match 'TextBox_PreviewSearch') -Message 'Preview pane should expose an in-preview search textbox.'
     Assert-True -Condition ($mainScriptContent -match '\$Button_PreviewSearch\.Text\s*=\s*''Find''') -Message 'Preview search button should use Find text.'
@@ -140,6 +156,12 @@ try {
     Assert-True -Condition ($supportScriptContent -match 'Function SetQuickSearchDialogCenter') -Message 'QS should define a shared dialog centering helper.'
     Assert-True -Condition ($supportScriptContent -match 'Function ShowQuickSearchMessageBox') -Message 'QS message boxes should use an owner-aware helper.'
     Assert-True -Condition ($supportScriptContent -match 'Function GetQuickSearchIndexSummaryText') -Message 'Index Settings should be able to summarize current index data.'
+    Assert-True -Condition ($supportScriptContent -match 'Function NewQuickSearchResultItem') -Message 'Support helpers should create display-ready result items with file timestamps.'
+    Assert-True -Condition ($supportScriptContent -match 'Function SelectQuickSearchResultItems') -Message 'Support helpers should filter result items.'
+    Assert-True -Condition ($supportScriptContent -match 'Function TestQuickSearchFilterText') -Message 'Support helpers should evaluate result filter boolean syntax.'
+    Assert-True -Condition ($supportScriptContent -match 'Filter syntax:') -Message 'About popup should explain result filter syntax.'
+    Assert-True -Condition ($supportScriptContent -match 'access `and report') -Message 'About popup should explain backtick escape for literal operator words.'
+    Assert-True -Condition ($supportScriptContent -match 'Function SortQuickSearchResultItems') -Message 'Support helpers should sort result items.'
     Assert-True -Condition ($supportScriptContent -match '\$Label_IndexData\.Text\s*=\s*''Index data''') -Message 'Index Settings should show an index data area.'
     Assert-True -Condition ($supportScriptContent -match '\$Button_RebuildIndex\.Location\s*=\s*New-Object System\.Drawing\.Point\(\$labelLeft, 395\)') -Message 'Re-Index button should be positioned at the lower-left of Index Settings.'
     Assert-True -Condition ($supportScriptContent -match '\$Button_Save\.Location\s*=\s*New-Object System\.Drawing\.Point\(470, 395\)') -Message 'Save button should be positioned at the lower-right of Index Settings.'
@@ -154,6 +176,40 @@ try {
     Assert-True -Condition ($mainScriptContent -match '-Config \$config') -Message 'UI background searches should pass runtime config for live content scan filtering.'
     Assert-True -Condition ($asyncScriptContent -match 'JobSelectedType') -Message 'Background search should receive the selected search type.'
     Assert-True -Condition ($asyncScriptContent -match 'JobScanScope') -Message 'Background search should receive the live scan scope.'
+
+    New-Item -ItemType Directory -Path $testRoot -Force | Out-Null
+    $metadataResultPath = Join-Path -Path $testRoot -ChildPath 'metadata-result.txt'
+    Set-Content -LiteralPath $metadataResultPath -Value 'metadata result content' -NoNewline
+    $metadataResultItem = NewQuickSearchResultItem -Path $metadataResultPath
+    Assert-True -Condition ($metadataResultItem.DisplayText.Contains($metadataResultPath)) -Message 'Result item display should include the file path.'
+    Assert-True -Condition ($metadataResultItem.DisplayText.Contains('Modified:')) -Message 'Result item display should include last modified time.'
+    Assert-True -Condition ($metadataResultItem.DisplayText.Contains('Created:')) -Message 'Result item display should include created time.'
+    Assert-True -Condition (-not $metadataResultItem.DisplayText.Contains('Accessed:')) -Message 'Result item display should not include last accessed time.'
+    Assert-True -Condition ($metadataResultItem.DisplayText.IndexOf('Modified:', [System.StringComparison]::Ordinal) -lt $metadataResultItem.DisplayText.IndexOf($metadataResultPath, [System.StringComparison]::Ordinal)) -Message 'Result item display should put timestamps before the path.'
+    Assert-True -Condition (-not [string]::IsNullOrWhiteSpace($metadataResultItem.MetadataText)) -Message 'Result item should keep date metadata separate from path for drawing.'
+    Assert-True -Condition ($metadataResultPath -eq (GetQuickSearchResultItemPath -Item $metadataResultItem)) -Message 'Result item path helper should return the real file path.'
+    Assert-True -Condition ($metadataResultItem.DisplayText -eq (GetQuickSearchResultItemDisplayText -Item $metadataResultItem)) -Message 'Result item display helper should return metadata display text.'
+    $filteredMetadataResults = @(SelectQuickSearchResultItems -Items @($metadataResultItem) -FilterText 'metadata-result Modified')
+    Assert-True -Condition (1 -eq $filteredMetadataResults.Count) -Message 'Result filter should match path and metadata text.'
+    $noMetadataResults = @(SelectQuickSearchResultItems -Items @($metadataResultItem) -FilterText 'not-present')
+    Assert-True -Condition (0 -eq $noMetadataResults.Count) -Message 'Result filter should remove nonmatching results.'
+    $filterSyntaxItems = @(
+        [PSCustomObject]@{ Name = 'access-report.txt'; Path = 'C:\access-report.txt'; DisplayText = 'access report'; MetadataText = 'Modified: 2024-01-01 00:00'; LastWriteTime = [datetime]'2024-01-01'; CreationTime = [datetime]'2024-01-01' },
+        [PSCustomObject]@{ Name = 'access-and-report.txt'; Path = 'C:\access-and-report.txt'; DisplayText = 'access and report'; MetadataText = 'Modified: 2024-01-02 00:00'; LastWriteTime = [datetime]'2024-01-02'; CreationTime = [datetime]'2024-01-02' },
+        [PSCustomObject]@{ Name = 'draft-access.txt'; Path = 'C:\draft-access.txt'; DisplayText = 'draft access'; MetadataText = 'Modified: 2024-01-03 00:00'; LastWriteTime = [datetime]'2024-01-03'; CreationTime = [datetime]'2024-01-03' }
+    )
+    Assert-True -Condition (2 -eq @(SelectQuickSearchResultItems -Items $filterSyntaxItems -FilterText 'access and report').Count) -Message 'Result filter should treat and as a boolean operator.'
+    Assert-True -Condition (1 -eq @(SelectQuickSearchResultItems -Items $filterSyntaxItems -FilterText 'access `and report').Count) -Message 'Result filter should use backtick to search operator words literally.'
+    Assert-True -Condition (3 -eq @(SelectQuickSearchResultItems -Items $filterSyntaxItems -FilterText 'report or draft').Count) -Message 'Result filter should support or clauses.'
+    Assert-True -Condition (2 -eq @(SelectQuickSearchResultItems -Items $filterSyntaxItems -FilterText 'access not draft').Count) -Message 'Result filter should support not exclusion.'
+    $sortSampleItems = @(
+        [PSCustomObject]@{ Name = 'beta.txt'; Path = 'C:\beta.txt'; DisplayText = 'beta'; LastWriteTime = [datetime]'2024-01-01'; CreationTime = [datetime]'2024-01-03' },
+        [PSCustomObject]@{ Name = 'alpha.txt'; Path = 'C:\alpha.txt'; DisplayText = 'alpha'; LastWriteTime = [datetime]'2024-01-05'; CreationTime = [datetime]'2024-01-01' }
+    )
+    Assert-True -Condition ('alpha.txt' -eq @(SortQuickSearchResultItems -Items $sortSampleItems -SortMode 'NameAsc')[0].Name) -Message 'Result sort should support Name A-Z.'
+    Assert-True -Condition ('beta.txt' -eq @(SortQuickSearchResultItems -Items $sortSampleItems -SortMode 'NameDesc')[0].Name) -Message 'Result sort should support Name Z-A.'
+    Assert-True -Condition ('alpha.txt' -eq @(SortQuickSearchResultItems -Items $sortSampleItems -SortMode 'Modified')[0].Name) -Message 'Result sort should support newest modified time first.'
+    Assert-True -Condition ('beta.txt' -eq @(SortQuickSearchResultItems -Items $sortSampleItems -SortMode 'Created')[0].Name) -Message 'Result sort should support newest created time first.'
 
     $searchScriptPath = Join-Path -Path $repoRoot -ChildPath 'src\QuickSearch.Search.ps1'
     $searchScriptContent = Get-Content -LiteralPath $searchScriptPath -Raw
@@ -273,6 +329,23 @@ try {
     $previewRichTextBox = New-Object System.Windows.Forms.RichTextBox
     $previewBrowser = New-Object System.Windows.Forms.WebBrowser
     $previewToggleButton = New-Object System.Windows.Forms.Button
+    $resultFilterLabel = New-Object System.Windows.Forms.Label
+    $resultFilterTextBox = New-Object System.Windows.Forms.TextBox
+    $resultFilterButton = New-Object System.Windows.Forms.Button
+    $resultSortPanel = New-Object System.Windows.Forms.Panel
+    $resultSortLabel = New-Object System.Windows.Forms.Label
+    $resultSortNameAsc = New-Object System.Windows.Forms.RadioButton
+    $resultSortNameAsc.Text = 'Name A-Z'
+    $resultSortNameDesc = New-Object System.Windows.Forms.RadioButton
+    $resultSortNameDesc.Text = 'Name Z-A'
+    $resultSortModified = New-Object System.Windows.Forms.RadioButton
+    $resultSortModified.Text = 'Modified'
+    $resultSortCreated = New-Object System.Windows.Forms.RadioButton
+    $resultSortCreated.Text = 'Created'
+    foreach ($resultSortControl in @($resultSortLabel, $resultSortNameAsc, $resultSortNameDesc, $resultSortModified, $resultSortCreated)) {
+        $resultSortPanel.Controls.Add($resultSortControl)
+    }
+    $resultSortButtons = @($resultSortNameAsc, $resultSortNameDesc, $resultSortModified, $resultSortCreated)
     $previewSearchTextBox = New-Object System.Windows.Forms.TextBox
     $previewSearchButton = New-Object System.Windows.Forms.Button
     $previewHost = NewQuickSearchPreviewHost -TextBox $previewRichTextBox -Browser $previewBrowser -SearchTextBox $previewSearchTextBox -SearchButton $previewSearchButton
@@ -283,16 +356,38 @@ try {
     finally {
         $findIcon.Dispose()
     }
-    SetQuickSearchPreviewPanelState -Form $previewForm -ResultsListBox $previewListBox -PreviewHost $previewHost -PreviewButton $previewToggleButton -Expanded $false
+    $ellipsisBitmap = New-Object System.Drawing.Bitmap(320, 30)
+    $ellipsisGraphics = [System.Drawing.Graphics]::FromImage($ellipsisBitmap)
+    try {
+        $longPathDisplayItem = [PSCustomObject]@{
+            MetadataText = 'Modified: 2024-01-01 00:00'
+            Path = 'D:\very\long\folder\structure\that\does\not\fit\example-document.html'
+            DisplayText = 'Modified: 2024-01-01 00:00    D:\very\long\folder\structure\that\does\not\fit\example-document.html'
+        }
+        $ellipsizedResultText = GetQuickSearchResultItemDisplayTextForWidth -Item $longPathDisplayItem -Graphics $ellipsisGraphics -Font ([System.Drawing.SystemFonts]::DefaultFont) -MaxWidth 260
+        Assert-True -Condition ($ellipsizedResultText.StartsWith('Modified: 2024-01-01 00:00')) -Message 'Ellipsized result text should keep dates at the front.'
+        Assert-True -Condition ($ellipsizedResultText.Contains('...')) -Message 'Ellipsized result text should shorten long paths with dots.'
+    }
+    finally {
+        $ellipsisGraphics.Dispose()
+        $ellipsisBitmap.Dispose()
+    }
+    SetQuickSearchPreviewPanelState -Form $previewForm -ResultsListBox $previewListBox -PreviewHost $previewHost -PreviewButton $previewToggleButton -Expanded $false -FilterLabel $resultFilterLabel -FilterTextBox $resultFilterTextBox -FilterButton $resultFilterButton -SortPanel $resultSortPanel -SortLabel $resultSortLabel -SortButtons $resultSortButtons
     $collapsedListWidth = $previewListBox.Width
     Assert-True -Condition (-not $previewRichTextBox.Visible) -Message 'Preview pane should be hidden when collapsed.'
     Assert-True -Condition (-not $previewBrowser.Visible) -Message 'HTML preview pane should be hidden when collapsed.'
+    Assert-True -Condition $resultFilterLabel.Visible -Message 'Result filter label should be visible in the results pane.'
+    Assert-True -Condition $resultFilterTextBox.Visible -Message 'Result filter textbox should be visible in the results pane.'
+    Assert-True -Condition $resultFilterButton.Visible -Message 'Result filter clear button should be visible in the results pane.'
+    Assert-True -Condition $resultSortPanel.Visible -Message 'Result sort panel should be visible in the results pane.'
+    Assert-True -Condition $resultSortNameAsc.Visible -Message 'Result sort radio buttons should be visible in the results pane.'
+    Assert-True -Condition ($previewListBox.Location.Y -gt ($resultSortPanel.Location.Y + $resultSortPanel.Height)) -Message 'Results list should sit below the result filter and sort controls.'
     Assert-True -Condition (-not $previewSearchTextBox.Visible) -Message 'Preview search textbox should be hidden when preview is collapsed.'
     Assert-True -Condition (-not $previewSearchButton.Visible) -Message 'Preview search button should be hidden when preview is collapsed.'
     Assert-True -Condition ('Show Preview' -eq $previewToggleButton.Text) -Message 'Preview toggle should offer to show preview when collapsed.'
     Assert-True -Condition ($collapsedListWidth -gt 900) -Message 'Results list should use nearly the full width when preview is collapsed.'
 
-    SetQuickSearchPreviewPanelState -Form $previewForm -ResultsListBox $previewListBox -PreviewHost $previewHost -PreviewButton $previewToggleButton -Expanded $true
+    SetQuickSearchPreviewPanelState -Form $previewForm -ResultsListBox $previewListBox -PreviewHost $previewHost -PreviewButton $previewToggleButton -Expanded $true -FilterLabel $resultFilterLabel -FilterTextBox $resultFilterTextBox -FilterButton $resultFilterButton -SortPanel $resultSortPanel -SortLabel $resultSortLabel -SortButtons $resultSortButtons
     Assert-True -Condition $previewRichTextBox.Visible -Message 'Preview pane should be visible when expanded.'
     Assert-True -Condition $previewSearchTextBox.Visible -Message 'Preview search textbox should be visible when preview is expanded.'
     Assert-True -Condition $previewSearchButton.Visible -Message 'Preview search button should be visible when preview is expanded.'

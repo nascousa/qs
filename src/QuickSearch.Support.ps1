@@ -356,6 +356,281 @@ Function TestExistingLiteralPath {
 }
 
 
+Function FormatQuickSearchFileTime {
+    param(
+        [object]$Value
+    )
+
+    if ($null -eq $Value) {
+        return 'n/a'
+    }
+
+    try {
+        return ([datetime]$Value).ToString('yyyy-MM-dd HH:mm')
+    }
+    catch {
+        return 'n/a'
+    }
+}
+
+
+Function NewQuickSearchResultItem {
+    param(
+        [string]$Path
+    )
+
+    $lastWriteTime = $null
+    $creationTime = $null
+
+    if (-not [string]::IsNullOrWhiteSpace($Path)) {
+        try {
+            $fileItem = Get-Item -LiteralPath $Path -ErrorAction Stop
+            $lastWriteTime = $fileItem.LastWriteTime
+            $creationTime = $fileItem.CreationTime
+        }
+        catch {
+        }
+    }
+
+    $lastWriteText = FormatQuickSearchFileTime -Value $lastWriteTime
+    $creationText = FormatQuickSearchFileTime -Value $creationTime
+    $metadataText = ('Modified: {0}    Created: {1}' -f $lastWriteText, $creationText)
+    $displayText = ('{0}    {1}' -f $metadataText, $Path)
+
+    return [PSCustomObject]@{
+        Path = [string]$Path
+        Name = [System.IO.Path]::GetFileName([string]$Path)
+        MetadataText = $metadataText
+        DisplayText = $displayText
+        LastWriteTime = $lastWriteTime
+        CreationTime = $creationTime
+        LastWriteText = $lastWriteText
+        CreationText = $creationText
+    }
+}
+
+
+Function GetQuickSearchResultItemPath {
+    param(
+        [object]$Item
+    )
+
+    if ($null -eq $Item) {
+        return ''
+    }
+
+    $pathProperty = $Item.PSObject.Properties['Path']
+    if ($null -ne $pathProperty) {
+        return [string]$pathProperty.Value
+    }
+
+    return [string]$Item
+}
+
+
+Function GetQuickSearchResultItemDisplayText {
+    param(
+        [object]$Item
+    )
+
+    if ($null -eq $Item) {
+        return ''
+    }
+
+    $displayTextProperty = $Item.PSObject.Properties['DisplayText']
+    if ($null -ne $displayTextProperty) {
+        return [string]$displayTextProperty.Value
+    }
+
+    return [string]$Item
+}
+
+
+Function SelectQuickSearchResultItems {
+    param(
+        [object[]]$Items,
+        [string]$FilterText
+    )
+
+    $sourceItems = @($Items)
+    if ([string]::IsNullOrWhiteSpace($FilterText)) {
+        return @($sourceItems)
+    }
+
+    $matchedItems = New-Object System.Collections.ArrayList
+    foreach ($item in $sourceItems) {
+        $displayText = GetQuickSearchResultItemDisplayText -Item $item
+        $pathText = GetQuickSearchResultItemPath -Item $item
+        $searchText = "$displayText $pathText"
+
+        if (TestQuickSearchFilterText -SearchText $searchText -FilterText $FilterText) {
+            [void]$matchedItems.Add($item)
+        }
+    }
+
+    return @($matchedItems)
+}
+
+
+Function ConvertQuickSearchFilterTextToTokens {
+    param(
+        [string]$FilterText
+    )
+
+    $tokens = New-Object System.Collections.ArrayList
+    $builder = New-Object System.Text.StringBuilder
+    $tokenEscaped = $false
+    $escapeNext = $false
+
+    foreach ($character in ([string]$FilterText).ToCharArray()) {
+        if ($escapeNext) {
+            [void]$builder.Append($character)
+            $tokenEscaped = $true
+            $escapeNext = $false
+            continue
+        }
+
+        if ($character -eq '`') {
+            $escapeNext = $true
+            continue
+        }
+
+        if ([char]::IsWhiteSpace($character)) {
+            if ($builder.Length -gt 0 -or $tokenEscaped) {
+                [void]$tokens.Add([PSCustomObject]@{ Text = $builder.ToString(); Escaped = $tokenEscaped })
+                [void]$builder.Clear()
+                $tokenEscaped = $false
+            }
+            continue
+        }
+
+        [void]$builder.Append($character)
+    }
+
+    if ($escapeNext) {
+        [void]$builder.Append('`')
+        $tokenEscaped = $true
+    }
+
+    if ($builder.Length -gt 0 -or $tokenEscaped) {
+        [void]$tokens.Add([PSCustomObject]@{ Text = $builder.ToString(); Escaped = $tokenEscaped })
+    }
+
+    return @($tokens)
+}
+
+
+Function TestQuickSearchFilterOperator {
+    param(
+        [object]$Token,
+        [string]$Operator
+    )
+
+    if ($null -eq $Token -or $Token.Escaped) {
+        return $false
+    }
+
+    return ([string]$Token.Text).Equals($Operator, [System.StringComparison]::OrdinalIgnoreCase)
+}
+
+
+Function TestQuickSearchFilterText {
+    param(
+        [string]$SearchText,
+        [string]$FilterText
+    )
+
+    $tokens = @(ConvertQuickSearchFilterTextToTokens -FilterText $FilterText)
+    if ($tokens.Count -eq 0) {
+        return $true
+    }
+
+    $clauses = New-Object System.Collections.ArrayList
+    $currentTerms = New-Object System.Collections.ArrayList
+    $negateNext = $false
+
+    foreach ($token in $tokens) {
+        if (TestQuickSearchFilterOperator -Token $token -Operator 'or') {
+            if ($currentTerms.Count -gt 0) {
+                [void]$clauses.Add(@($currentTerms))
+            }
+            $currentTerms = New-Object System.Collections.ArrayList
+            $negateNext = $false
+            continue
+        }
+
+        if (TestQuickSearchFilterOperator -Token $token -Operator 'and') {
+            continue
+        }
+
+        if (TestQuickSearchFilterOperator -Token $token -Operator 'not') {
+            $negateNext = -not $negateNext
+            continue
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace([string]$token.Text)) {
+            [void]$currentTerms.Add([PSCustomObject]@{ Text = [string]$token.Text; Negated = $negateNext })
+            $negateNext = $false
+        }
+    }
+
+    if ($currentTerms.Count -gt 0) {
+        [void]$clauses.Add(@($currentTerms))
+    }
+
+    if ($clauses.Count -eq 0) {
+        return $true
+    }
+
+    foreach ($clause in $clauses) {
+        $clauseMatched = $true
+        foreach ($term in @($clause)) {
+            $termMatched = ([string]$SearchText).IndexOf([string]$term.Text, [System.StringComparison]::OrdinalIgnoreCase) -ge 0
+            if ($term.Negated) {
+                if ($termMatched) {
+                    $clauseMatched = $false
+                    break
+                }
+            }
+            elseif (-not $termMatched) {
+                $clauseMatched = $false
+                break
+            }
+        }
+
+        if ($clauseMatched) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
+
+Function SortQuickSearchResultItems {
+    param(
+        [object[]]$Items,
+        [string]$SortMode = 'NameAsc'
+    )
+
+    $sourceItems = @($Items)
+    switch ($SortMode) {
+        'NameDesc' {
+            return @($sourceItems | Sort-Object -Property @{ Expression = { $_.Name }; Descending = $true }, @{ Expression = { $_.Path }; Descending = $true })
+        }
+        'Modified' {
+            return @($sourceItems | Sort-Object -Property @{ Expression = { if ($null -ne $_.LastWriteTime) { $_.LastWriteTime } else { [datetime]::MinValue } }; Descending = $true }, @{ Expression = { $_.Name }; Descending = $false })
+        }
+        'Created' {
+            return @($sourceItems | Sort-Object -Property @{ Expression = { if ($null -ne $_.CreationTime) { $_.CreationTime } else { [datetime]::MinValue } }; Descending = $true }, @{ Expression = { $_.Name }; Descending = $false })
+        }
+        default {
+            return @($sourceItems | Sort-Object -Property @{ Expression = { $_.Name }; Descending = $false }, @{ Expression = { $_.Path }; Descending = $false })
+        }
+    }
+}
+
+
 Function TestMarkdownFile {
     param(
         [string]$FilePath
@@ -542,7 +817,13 @@ Function ShowQuickSearchAbout {
         '3. Use Filename/Tags (Quick) for fast indexed TEAM searches.',
         '4. Use Content (Slow) when you need to search inside files.',
         '5. Select a result to preview it, then click Open to launch the file.',
-        '6. Open Index to update TEAM index settings or run Re-Index Team Folder.'
+        '6. Open Index to update TEAM index settings or run Re-Index Team Folder.',
+        '',
+        'Filter syntax:',
+        'Use spaces or and to require all terms, for example: access and report',
+        'Use or to match either side, for example: access or report',
+        'Use not to exclude the next term, for example: access not draft',
+        'Use ` to search an operator word literally, for example: access `and report'
     ) -join $newLine
 
     ShowQuickSearchMessageBox -Owner $Owner -Message $message -Title 'About QuickSearch'

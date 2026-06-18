@@ -1,6 +1,6 @@
 # QuickSearch (QS)
 
-**Version:** v1.4.46
+**Version:** v1.4.51
 **Date:** 2026-06-18  
 **Status:** Air-gapped, pure PowerShell desktop search tool for mapped team folders  
 **ADC Standard:** 1.1.27  
@@ -31,7 +31,13 @@ Set-Location D:\Repos\QuickSearch
 PowerShell.exe -NoProfile -ExecutionPolicy Bypass -File .\src\QuickSearch.ps1
 ```
 
-The window title uses the `Version` value from `src/settings/config.json`, for example `QuickSearch v1.4.46`.
+The window title uses the `Version` value from `src/settings/config.json`, for example `QuickSearch v1.4.51`.
+
+## Screenshots
+
+![QuickSearch results with filter, sort, preview, and full-path hover tooltip](src/assets/Snipaste_2026-06-18_14-47-49.png)
+
+![QuickSearch Index Settings with index data and indexing progress](src/assets/Snipaste_2026-06-18_14-49-16.png)
 
 ## Main Buttons
 
@@ -51,6 +57,8 @@ Prompts, settings dialogs, and progress windows open centered over the main Quic
 - `Scope` applies to `ALL` live scans. `Configured Types` scans configured folders such as TSG, SOP, and CASE. `All` scans the full selected root.
 
 If TEAM quick search says the index is missing, open `Index` and run `Re-Index Team Folder`.
+
+Search results show modified and created timestamps before each file path. Long paths are shortened with `...` inside the list; hover over a result to see the full path. Use the result `Filter` box above the list to narrow the current results by path text, timestamps, extension, or any displayed term. Filter supports `and`, `or`, `not`, and backtick escape, so `access and report` means both terms while ``access `and report`` searches the word `and` literally. Use the result sort radio buttons to order by `Name A-Z`, `Name Z-A`, `Modified`, or `Created`; date sorts show newest files first.
 
 ## Index
 

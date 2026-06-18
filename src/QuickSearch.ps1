@@ -74,6 +74,10 @@ Function GUI()
     # $main_form.StartPosition = "CenterScreen"
     $main_form.MaximizeBox = $false
     $search_results = @()
+    $ResultState = [PSCustomObject]@{
+        AllItems = @()
+        SortMode = 'NameAsc'
+    }
 
 
     # --------------------------------------------------------------------------------
@@ -236,6 +240,56 @@ Function GUI()
 
 
     # --------------------------------------------------------------------------------
+    # Result filter controls
+    $Label_ResultFilter = New-Object System.Windows.Forms.Label
+    $Label_ResultFilter.Text = 'Filter'
+    $Label_ResultFilter.Visible = $false
+    $main_form.Controls.Add($Label_ResultFilter)
+
+    $TextBox_ResultFilter = New-Object System.Windows.Forms.TextBox
+    $TextBox_ResultFilter.Visible = $false
+    $main_form.Controls.Add($TextBox_ResultFilter)
+
+    $Button_ClearResultFilter = New-Object System.Windows.Forms.Button
+    $Button_ClearResultFilter.Text = 'Clear'
+    $Button_ClearResultFilter.Visible = $false
+    $main_form.Controls.Add($Button_ClearResultFilter)
+
+    $Panel_ResultSort = New-Object System.Windows.Forms.Panel
+    $Panel_ResultSort.Visible = $false
+    $main_form.Controls.Add($Panel_ResultSort)
+
+    $Label_ResultSort = New-Object System.Windows.Forms.Label
+    $Label_ResultSort.Text = 'Sort'
+    $Label_ResultSort.Visible = $false
+    $Panel_ResultSort.Controls.Add($Label_ResultSort)
+
+    $RadioButton_SortNameAsc = New-Object System.Windows.Forms.RadioButton
+    $RadioButton_SortNameAsc.Text = 'Name A-Z'
+    $RadioButton_SortNameAsc.Checked = $true
+    $RadioButton_SortNameAsc.Visible = $false
+    $Panel_ResultSort.Controls.Add($RadioButton_SortNameAsc)
+
+    $RadioButton_SortNameDesc = New-Object System.Windows.Forms.RadioButton
+    $RadioButton_SortNameDesc.Text = 'Name Z-A'
+    $RadioButton_SortNameDesc.Visible = $false
+    $Panel_ResultSort.Controls.Add($RadioButton_SortNameDesc)
+
+    $RadioButton_SortModified = New-Object System.Windows.Forms.RadioButton
+    $RadioButton_SortModified.Text = 'Modified'
+    $RadioButton_SortModified.Visible = $false
+    $Panel_ResultSort.Controls.Add($RadioButton_SortModified)
+
+    $RadioButton_SortCreated = New-Object System.Windows.Forms.RadioButton
+    $RadioButton_SortCreated.Text = 'Created'
+    $RadioButton_SortCreated.Visible = $false
+    $Panel_ResultSort.Controls.Add($RadioButton_SortCreated)
+
+    $ResultSortButtons = @($RadioButton_SortNameAsc, $RadioButton_SortNameDesc, $RadioButton_SortModified, $RadioButton_SortCreated)
+    # --------------------------------------------------------------------------------
+
+
+    # --------------------------------------------------------------------------------
     # ListBox_Results
     $ListBox_Results = New-Object System.Windows.Forms.ListBox
     $ListBox_Results.Text = 'none'
@@ -245,10 +299,16 @@ Function GUI()
     $ListBox_Results.AutoSize = $false
     $ListBox_Results.Items.AddRange($search_results)
     $ListBox_Results.ScrollAlwaysVisible = $true
-    $ListBox_Results.HorizontalScrollbar = $true
+    $ListBox_Results.HorizontalScrollbar = $false
     $ListBox_Results.DrawMode = [System.Windows.Forms.DrawMode]::OwnerDrawFixed
     $ListBox_Results.Items.Clear()
     $main_form.Controls.Add($ListBox_Results)
+
+    $ResultListToolTip = New-Object System.Windows.Forms.ToolTip
+    $ResultListToolTip.AutoPopDelay = 15000
+    $ResultListToolTip.InitialDelay = 500
+    $ResultListToolTip.ReshowDelay = 100
+    $ResultHoverState = [PSCustomObject]@{ LastToolTipPath = '' }
 
     # RichTextBox_TargetFileContent
     $RichTextBox_TargetFileContent = New-Object System.Windows.Forms.RichTextBox
@@ -304,7 +364,7 @@ Function GUI()
     $RadioButton_SearchMethod1.Add_CheckedChanged($updateLiveScanScopeState)
     $RadioButton_SearchMethod2.Add_CheckedChanged($updateLiveScanScopeState)
     & $updateLiveScanScopeState
-    SetQuickSearchPreviewPanelState -Form $main_form -ResultsListBox $ListBox_Results -PreviewHost $PreviewHost -PreviewButton $Button_PreviewToggle -Expanded $PreviewState.Expanded
+    SetQuickSearchPreviewPanelState -Form $main_form -ResultsListBox $ListBox_Results -PreviewHost $PreviewHost -PreviewButton $Button_PreviewToggle -Expanded $PreviewState.Expanded -FilterLabel $Label_ResultFilter -FilterTextBox $TextBox_ResultFilter -FilterButton $Button_ClearResultFilter -SortPanel $Panel_ResultSort -SortLabel $Label_ResultSort -SortButtons $ResultSortButtons
     # --------------------------------------------------------------------------------
 
 
@@ -328,11 +388,56 @@ Function GUI()
     # --------------------------------------------------------------------------------
 
 
+    $applyResultFilter = {
+        $sortedItems = @(SortQuickSearchResultItems -Items $ResultState.AllItems -SortMode $ResultState.SortMode)
+        $filteredItems = @(SelectQuickSearchResultItems -Items $sortedItems -FilterText $TextBox_ResultFilter.Text)
+
+        $ListBox_Results.BeginUpdate()
+        try {
+            $ListBox_Results.Items.Clear()
+            if ($filteredItems.Count -gt 0) {
+                $ListBox_Results.Items.AddRange([object[]]$filteredItems)
+            }
+            elseif (@($ResultState.AllItems).Count -gt 0) {
+                [void]$ListBox_Results.Items.Add('No results match the filter.')
+            }
+        }
+        finally {
+            $ListBox_Results.EndUpdate()
+        }
+
+        if (@($ResultState.AllItems).Count -gt 0) {
+            if ([string]::IsNullOrWhiteSpace($TextBox_ResultFilter.Text)) {
+                $TextBox_Status.Text = "Results: $(@($ResultState.AllItems).Count)"
+            }
+            else {
+                $TextBox_Status.Text = "Filtered: $($filteredItems.Count)/$(@($ResultState.AllItems).Count)"
+            }
+        }
+    }
+
+    $TextBox_ResultFilter.Add_TextChanged({ & $applyResultFilter })
+    $Button_ClearResultFilter.Add_Click({ $TextBox_ResultFilter.Clear() })
+    $updateResultSortMode = {
+        if ($RadioButton_SortNameDesc.Checked) { $ResultState.SortMode = 'NameDesc' }
+        elseif ($RadioButton_SortModified.Checked) { $ResultState.SortMode = 'Modified' }
+        elseif ($RadioButton_SortCreated.Checked) { $ResultState.SortMode = 'Created' }
+        else { $ResultState.SortMode = 'NameAsc' }
+
+        & $applyResultFilter
+    }
+    foreach ($sortButton in $ResultSortButtons) {
+        $sortButton.Add_CheckedChanged($updateResultSortMode)
+    }
+
+
     # --------------------------------------------------------------------------------
     # Button_Search Add_Click event handler
     # --------------------------------------------------------------------------------
     $Button_Search.Add_Click({
+        $ResultState.AllItems = @()
         $ListBox_Results.Items.Clear()
+        $TextBox_ResultFilter.Clear()
         $TextBox_TargetFilePath.Text = "Searching..."
         $TextBox_Status.Text = "Searching..."
         $search_results = @()
@@ -436,8 +541,8 @@ Function GUI()
         $ListBox_Results.BeginUpdate()
         try {
             if(@($search_results).Count -gt 0){
-                $resultItems = [object[]]@($search_results | ForEach-Object { [string]$_ })
-                $ListBox_Results.Items.AddRange($resultItems)
+                $resultItems = [object[]]@($search_results | ForEach-Object { NewQuickSearchResultItem -Path ([string]$_) })
+                $ResultState.AllItems = @($resultItems)
                 Write-Host "Search Results: $($resultItems.Count)`n" -ForegroundColor Green
             }else{
                 [void]$ListBox_Results.Items.Add('Keyword cannot be found!')
@@ -446,6 +551,10 @@ Function GUI()
         }
         finally {
             $ListBox_Results.EndUpdate()
+        }
+
+        if (@($ResultState.AllItems).Count -gt 0) {
+            & $applyResultFilter
         }
 
         $TextBox_Status.Text = "Completed"
@@ -470,6 +579,8 @@ Function GUI()
         $profileResult = ShowQuickSearchProfileSettings -Owner $main_form -Config $config -ConfigPath $ConfigPath -ProfilesDirectory $ProfilesDirectory
         if ($null -ne $profileResult -and $profileResult.Applied) {
             SetQuickSearchProfileControls -Config $config -DriveComboBox $ComboBox_DriveLetter -TypeComboBox $ComboBox_Type
+            $ResultState.AllItems = @()
+            $TextBox_ResultFilter.Clear()
             $ListBox_Results.Items.Clear()
             $TextBox_Status.Text = 'Profile applied'
             $TextBox_TargetFilePath.Text = "Profile: $($profileResult.Name)"
@@ -490,7 +601,7 @@ Function GUI()
     # --------------------------------------------------------------------------------
     $Button_PreviewToggle.Add_Click({
         $PreviewState.Expanded = -not $PreviewState.Expanded
-        SetQuickSearchPreviewPanelState -Form $main_form -ResultsListBox $ListBox_Results -PreviewHost $PreviewHost -PreviewButton $Button_PreviewToggle -Expanded $PreviewState.Expanded
+        SetQuickSearchPreviewPanelState -Form $main_form -ResultsListBox $ListBox_Results -PreviewHost $PreviewHost -PreviewButton $Button_PreviewToggle -Expanded $PreviewState.Expanded -FilterLabel $Label_ResultFilter -FilterTextBox $TextBox_ResultFilter -FilterButton $Button_ClearResultFilter -SortPanel $Panel_ResultSort -SortLabel $Label_ResultSort -SortButtons $ResultSortButtons
     })
 
     $searchPreviewContent = {
@@ -528,7 +639,7 @@ Function GUI()
     # Button_OpenTargetFile Add_Click event handler
     # --------------------------------------------------------------------------------
     $Button_OpenTargetFile.Add_Click({
-        $SelectedItemPath = [string]$ListBox_Results.SelectedItem
+        $SelectedItemPath = GetQuickSearchResultItemPath -Item $ListBox_Results.SelectedItem
 
         if(TestExistingLiteralPath $SelectedItemPath){
             Start-Process -FilePath $SelectedItemPath
@@ -541,7 +652,7 @@ Function GUI()
     # ListBox_Results Add_Click event handler
     # --------------------------------------------------------------------------------
     $ListBox_Results.Add_Click({
-        $SelectedItemPath = [string]$ListBox_Results.SelectedItem
+        $SelectedItemPath = GetQuickSearchResultItemPath -Item $ListBox_Results.SelectedItem
         if(TestExistingLiteralPath $SelectedItemPath)
         {
             $TextBox_TargetFilePath.Text = $SelectedItemPath
@@ -552,7 +663,7 @@ Function GUI()
             $TextBox_PreviewSearch.Text = ''
             SetQuickSearchKeywordPlaceholder -TextBox $TextBox_PreviewSearch
             $PreviewState.Expanded = $true
-            SetQuickSearchPreviewPanelState -Form $main_form -ResultsListBox $ListBox_Results -PreviewHost $PreviewHost -PreviewButton $Button_PreviewToggle -Expanded $PreviewState.Expanded
+            SetQuickSearchPreviewPanelState -Form $main_form -ResultsListBox $ListBox_Results -PreviewHost $PreviewHost -PreviewButton $Button_PreviewToggle -Expanded $PreviewState.Expanded -FilterLabel $Label_ResultFilter -FilterTextBox $TextBox_ResultFilter -FilterButton $Button_ClearResultFilter -SortPanel $Panel_ResultSort -SortLabel $Label_ResultSort -SortButtons $ResultSortButtons
             $highlightPreviewKeyword = -not [string]::IsNullOrWhiteSpace($SearchState.Keyword)
             SetQuickSearchPreviewContent -PreviewHost $PreviewHost -FilePath $TextBox_TargetFilePath.Text -Content $TargetFileContent -Keyword $SearchState.Keyword -HighlightKeyword:$highlightPreviewKeyword
         }
@@ -563,12 +674,47 @@ Function GUI()
     # ListBox_Results Add_DoubleClick event handler
     # --------------------------------------------------------------------------------
     $ListBox_Results.Add_DoubleClick({
-        $SelectedItemPath = [string]$ListBox_Results.SelectedItem
+        $SelectedItemPath = GetQuickSearchResultItemPath -Item $ListBox_Results.SelectedItem
 
         if(TestExistingLiteralPath $SelectedItemPath){
             Start-Process -FilePath $SelectedItemPath
             Write-Host $SelectedItemPath
         }
+    })
+
+
+    # --------------------------------------------------------------------------------
+    # ListBox_Results Add_MouseMove event handler
+    # --------------------------------------------------------------------------------
+    $ListBox_Results.Add_MouseMove({
+        param(
+            [System.Object]$listBoxSender,
+            [System.Windows.Forms.MouseEventArgs]$eventArgs
+        )
+
+        $hoverIndex = $listBoxSender.IndexFromPoint($eventArgs.Location)
+        if ($hoverIndex -lt 0 -or $hoverIndex -ge $listBoxSender.Items.Count) {
+            if (-not [string]::IsNullOrEmpty($ResultHoverState.LastToolTipPath)) {
+                $ResultListToolTip.SetToolTip($ListBox_Results, '')
+                $ResultHoverState.LastToolTipPath = ''
+            }
+            return
+        }
+
+        $hoverPath = GetQuickSearchResultItemPath -Item $listBoxSender.Items[$hoverIndex]
+        if ((TestExistingLiteralPath $hoverPath) -and $hoverPath -ne $ResultHoverState.LastToolTipPath) {
+            $ResultListToolTip.SetToolTip($ListBox_Results, $hoverPath)
+            $ResultHoverState.LastToolTipPath = $hoverPath
+        }
+        elseif (-not (TestExistingLiteralPath $hoverPath) -and -not [string]::IsNullOrEmpty($ResultHoverState.LastToolTipPath)) {
+            $ResultListToolTip.SetToolTip($ListBox_Results, '')
+            $ResultHoverState.LastToolTipPath = ''
+        }
+    })
+
+    $ListBox_Results.Add_MouseLeave({
+        $ResultListToolTip.SetToolTip($ListBox_Results, '')
+        $ResultHoverState.LastToolTipPath = ''
     })
 
 
@@ -591,14 +737,16 @@ Function GUI()
             $e.Graphics.FillRectangle([System.Drawing.Brushes]::White, $e.Bounds)
         }
 
-        $ItemText = [string]$ListBox_Results.Items[$e.Index]
         $font = [System.Drawing.SystemFonts]::DefaultFont
+        $drawBounds = New-Object System.Drawing.Rectangle(($e.Bounds.X + 2), $e.Bounds.Y, ([Math]::Max(1, $e.Bounds.Width - 4)), $e.Bounds.Height)
+        $ItemText = GetQuickSearchResultItemDisplayTextForWidth -Item $ListBox_Results.Items[$e.Index] -Graphics $e.Graphics -Font $font -MaxWidth $drawBounds.Width
         
         if($e.State -band [System.Windows.Forms.DrawItemState]::Selected){
             $font = [System.Drawing.Font]::new($font, [System.Drawing.FontStyle]::Bold)
-            DrawQuickSearchHighlightedListText -Graphics $e.Graphics -Bounds $e.Bounds -Text $ItemText -Keyword $SearchState.Keyword -Font $font -TextBrush ([System.Drawing.Brushes]::DarkBlue)
+            $ItemText = GetQuickSearchResultItemDisplayTextForWidth -Item $ListBox_Results.Items[$e.Index] -Graphics $e.Graphics -Font $font -MaxWidth $drawBounds.Width
+            DrawQuickSearchHighlightedListText -Graphics $e.Graphics -Bounds $drawBounds -Text $ItemText -Keyword $SearchState.Keyword -Font $font -TextBrush ([System.Drawing.Brushes]::DarkBlue)
         }else{
-            DrawQuickSearchHighlightedListText -Graphics $e.Graphics -Bounds $e.Bounds -Text $ItemText -Keyword $SearchState.Keyword -Font $ListBox_Results.Font -TextBrush ([System.Drawing.Brushes]::Black)
+            DrawQuickSearchHighlightedListText -Graphics $e.Graphics -Bounds $drawBounds -Text $ItemText -Keyword $SearchState.Keyword -Font $ListBox_Results.Font -TextBrush ([System.Drawing.Brushes]::Black)
         }
     })
 

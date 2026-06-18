@@ -476,36 +476,210 @@ Function DrawQuickSearchHighlightedListText {
 }
 
 
+Function GetQuickSearchMeasuredTextWidth {
+    param(
+        [System.Drawing.Graphics]$Graphics,
+        [System.Drawing.Font]$Font,
+        [string]$Text
+    )
+
+    if ([string]::IsNullOrEmpty($Text)) {
+        return 0
+    }
+
+    return $Graphics.MeasureString($Text, $Font).Width
+}
+
+
+Function GetQuickSearchEllipsizedText {
+    param(
+        [System.Drawing.Graphics]$Graphics,
+        [System.Drawing.Font]$Font,
+        [string]$Text,
+        [int]$MaxWidth
+    )
+
+    if ([string]::IsNullOrEmpty($Text) -or $MaxWidth -le 0) {
+        return '...'
+    }
+
+    if ((GetQuickSearchMeasuredTextWidth -Graphics $Graphics -Font $Font -Text $Text) -le $MaxWidth) {
+        return $Text
+    }
+
+    $ellipsis = '...'
+    if ((GetQuickSearchMeasuredTextWidth -Graphics $Graphics -Font $Font -Text $ellipsis) -gt $MaxWidth) {
+        return $ellipsis
+    }
+
+    $left = 0
+    $right = $Text.Length
+    $bestText = $ellipsis
+    while ($left -le $right) {
+        $mid = [int](($left + $right) / 2)
+        if ($mid -le 0) {
+            $candidate = $ellipsis
+        }
+        else {
+            $candidate = $ellipsis + $Text.Substring($Text.Length - $mid)
+        }
+
+        if ((GetQuickSearchMeasuredTextWidth -Graphics $Graphics -Font $Font -Text $candidate) -le $MaxWidth) {
+            $bestText = $candidate
+            $left = $mid + 1
+        }
+        else {
+            $right = $mid - 1
+        }
+    }
+
+    return $bestText
+}
+
+
+Function GetQuickSearchResultItemDisplayTextForWidth {
+    param(
+        [object]$Item,
+        [System.Drawing.Graphics]$Graphics,
+        [System.Drawing.Font]$Font,
+        [int]$MaxWidth
+    )
+
+    $displayText = GetQuickSearchResultItemDisplayText -Item $Item
+    if ([string]::IsNullOrEmpty($displayText) -or $null -eq $Graphics -or $null -eq $Font -or $MaxWidth -le 0) {
+        return $displayText
+    }
+
+    if ((GetQuickSearchMeasuredTextWidth -Graphics $Graphics -Font $Font -Text $displayText) -le $MaxWidth) {
+        return $displayText
+    }
+
+    $metadataProperty = $Item.PSObject.Properties['MetadataText']
+    $pathProperty = $Item.PSObject.Properties['Path']
+    if ($null -eq $metadataProperty -or $null -eq $pathProperty) {
+        return GetQuickSearchEllipsizedText -Graphics $Graphics -Font $Font -Text $displayText -MaxWidth $MaxWidth
+    }
+
+    $metadataText = [string]$metadataProperty.Value
+    $pathText = [string]$pathProperty.Value
+    $separator = '    '
+    $metadataWidth = GetQuickSearchMeasuredTextWidth -Graphics $Graphics -Font $Font -Text ($metadataText + $separator)
+    $pathWidth = [int]($MaxWidth - $metadataWidth)
+    if ($pathWidth -le 20) {
+        return GetQuickSearchEllipsizedText -Graphics $Graphics -Font $Font -Text $displayText -MaxWidth $MaxWidth
+    }
+
+    $ellipsizedPath = GetQuickSearchEllipsizedText -Graphics $Graphics -Font $Font -Text $pathText -MaxWidth $pathWidth
+    return ($metadataText + $separator + $ellipsizedPath)
+}
+
+
 Function SetQuickSearchPreviewPanelState {
     param(
         [System.Windows.Forms.Form]$Form,
         [System.Windows.Forms.ListBox]$ResultsListBox,
         [object]$PreviewHost,
         [System.Windows.Forms.Button]$PreviewButton,
-        [bool]$Expanded
+        [bool]$Expanded,
+        [System.Windows.Forms.Label]$FilterLabel = $null,
+        [System.Windows.Forms.TextBox]$FilterTextBox = $null,
+        [System.Windows.Forms.Button]$FilterButton = $null,
+        [System.Windows.Forms.Panel]$SortPanel = $null,
+        [System.Windows.Forms.Label]$SortLabel = $null,
+        [System.Windows.Forms.RadioButton[]]$SortButtons = @()
     )
 
     $PreviewHost.Expanded = $Expanded
     $contentTop = 40
     $contentHeight = [Math]::Max(120, $Form.ClientSize.Height - 95)
+    $resultsWidth = [Math]::Max(320, $Form.ClientSize.Width - 20)
+    $previewLeft = $resultsWidth + 20
+    $previewWidth = [Math]::Max(320, $Form.ClientSize.Width - $previewLeft - 15)
 
     if ($Expanded) {
         $resultsWidth = [Math]::Max(320, [int](($Form.ClientSize.Width - 35) / 2))
         $previewLeft = $resultsWidth + 20
         $previewWidth = [Math]::Max(320, $Form.ClientSize.Width - $previewLeft - 15)
-
-        $ResultsListBox.Location = New-Object System.Drawing.Point(10, $contentTop)
-        $ResultsListBox.Width = $resultsWidth
-        $ResultsListBox.Height = $contentHeight
         SetQuickSearchPreviewHostBounds -PreviewHost $PreviewHost -Location (New-Object System.Drawing.Point($previewLeft, $contentTop)) -Width $previewWidth -Height $contentHeight
         $PreviewButton.Text = 'Hide Preview'
     }
     else {
-        $ResultsListBox.Location = New-Object System.Drawing.Point(10, $contentTop)
-        $ResultsListBox.Width = [Math]::Max(320, $Form.ClientSize.Width - 20)
-        $ResultsListBox.Height = $contentHeight
         $PreviewButton.Text = 'Show Preview'
     }
+
+    $listTop = $contentTop
+    $listHeight = $contentHeight
+    if ($null -ne $FilterLabel -and $null -ne $FilterTextBox -and $null -ne $FilterButton) {
+        $filterHeight = 22
+        $filterGap = 6
+        $filterLabelWidth = 38
+        $filterButtonWidth = 55
+        $filterTextLeft = 10 + $filterLabelWidth + $filterGap
+        $filterTextWidth = [Math]::Max(120, $resultsWidth - $filterLabelWidth - $filterButtonWidth - (2 * $filterGap))
+        $FilterLabel.Location = New-Object System.Drawing.Point(10, ($contentTop + 3))
+        $FilterLabel.Width = $filterLabelWidth
+        $FilterLabel.Visible = $true
+        $FilterTextBox.Location = New-Object System.Drawing.Point($filterTextLeft, $contentTop)
+        $FilterTextBox.Width = $filterTextWidth
+        $FilterTextBox.Height = 20
+        $FilterTextBox.Visible = $true
+        $FilterButton.Location = New-Object System.Drawing.Point(($filterTextLeft + $filterTextWidth + $filterGap), $contentTop)
+        $FilterButton.Width = $filterButtonWidth
+        $FilterButton.Height = 22
+        $FilterButton.Visible = $true
+        $listTop = $contentTop + $filterHeight + $filterGap
+        $listHeight = [Math]::Max(80, $contentHeight - $filterHeight - $filterGap)
+    }
+
+    $sortButtonsToShow = @($SortButtons | Where-Object { $null -ne $_ })
+    if ($null -ne $SortLabel -and $sortButtonsToShow.Count -gt 0) {
+        $sortTop = $listTop
+        $sortHeight = 22
+        $sortGap = 6
+        $sortLabelWidth = 38
+        $sortLeftOffset = 0
+        $sortLabelTop = 3
+        $sortButtonTop = 0
+        if ($null -ne $SortPanel) {
+            $SortPanel.Location = New-Object System.Drawing.Point(10, $sortTop)
+            $SortPanel.Width = $resultsWidth
+            $SortPanel.Height = $sortHeight
+            $SortPanel.Visible = $true
+        }
+        else {
+            $sortLeftOffset = 10
+            $sortLabelTop = $sortTop + 3
+            $sortButtonTop = $sortTop
+        }
+
+        $SortLabel.Text = 'Sort'
+        $SortLabel.Location = New-Object System.Drawing.Point($sortLeftOffset, $sortLabelTop)
+        $SortLabel.Width = $sortLabelWidth
+        $SortLabel.Visible = $true
+
+        $currentLeft = $sortLeftOffset + $sortLabelWidth + $sortGap
+        $availableRight = $sortLeftOffset + $resultsWidth
+        foreach ($sortButton in $sortButtonsToShow) {
+            $buttonWidth = 74
+            if ($sortButton.Text -match 'Modified') { $buttonWidth = 86 }
+            if ($currentLeft + $buttonWidth -gt $availableRight) {
+                $buttonWidth = [Math]::Max(62, $availableRight - $currentLeft)
+            }
+
+            $sortButton.Location = New-Object System.Drawing.Point($currentLeft, $sortButtonTop)
+            $sortButton.Width = $buttonWidth
+            $sortButton.Height = 20
+            $sortButton.Visible = $true
+            $currentLeft += $buttonWidth + $sortGap
+        }
+
+        $listTop = $sortTop + $sortHeight + $sortGap
+        $listHeight = [Math]::Max(80, $contentHeight - ($listTop - $contentTop))
+    }
+
+    $ResultsListBox.Location = New-Object System.Drawing.Point(10, $listTop)
+    $ResultsListBox.Width = $resultsWidth
+    $ResultsListBox.Height = $listHeight
 
     UpdateQuickSearchPreviewHostVisibility -PreviewHost $PreviewHost
 }

@@ -1,7 +1,7 @@
 ---
 project-name: "QuickSearch"
 project-alias: "QS"
-version: "1.4.51"
+version: "1.4.54"
 adc-standard-version: "1.1.27"
 description: "A Windows PowerShell desktop utility for searching mapped shared-drive documents, rendering collapsible text, HTML, and Markdown previews, and maintaining an integrated streaming TEAM inverted tag index."
 tech-stack:
@@ -16,6 +16,7 @@ entry-points:
   - src/QuickSearch.IndexStatus.ps1
   - src/QuickSearch.IndexPolicy.ps1
   - src/QuickSearch.IndexResume.ps1
+  - src/QuickSearch.IndexShard.ps1
   - src/QuickSearch.Index.ps1
   - src/QuickSearch.Search.ps1
   - src/QuickSearch.Async.ps1
@@ -32,12 +33,12 @@ entry-points:
   - tests/smoke-text-transfer.ps1
   - tests/smoke-ultra-transfer.ps1
   - tests/smoke-payload.ps1
-date: "2026-06-18"
+date: "2026-06-19"
 ---
 
 # QuickSearch ADC Index
 
-QuickSearch (QS) is a small Windows desktop search helper implemented in PowerShell. It provides a Windows Forms UI for searching mapped drive folders, previewing selected file content, opening matching files, and maintaining a TEAM quick-search path backed by a generated JSON inverted index rather than an installed database. Top-word extraction streams target files instead of splitting whole file contents in memory. The index stores filenames, paths, and generated top-word tags, not full source file text. TEAM quick search caches parsed index reads within the current process and materializes schema v2 results in a single document pass after term lookup. Content (Slow) is bounded by configurable result and file-size limits, prunes ignored folders, can reuse TEAM index document paths as candidates, defaults ALL scans to configured type roots, and optionally uses ripgrep when available. Legacy payload and text-transfer helpers are archived under `src/tools/` for manual reuse only. The project is intentionally lightweight and currently has no package manager, compiled build step, server runtime, database, or external service dependency.
+QuickSearch (QS) is a small Windows desktop search helper implemented in PowerShell. It provides a Windows Forms UI for searching mapped drive folders, previewing selected file content, opening matching files, and maintaining a TEAM quick-search path backed by generated JSON shard files rather than an installed database. Top-word extraction streams target files instead of splitting whole file contents in memory. The index stores filenames, paths, and generated top-word tags, not full source file text. TEAM quick search caches parsed index reads within the current process, prefers schema v3 manifest/shard reads, and keeps schema v2 compatibility. Content (Slow) is bounded by configurable result and file-size limits, prunes ignored folders, can reuse TEAM index document paths as candidates, defaults ALL scans to configured type roots, and optionally uses ripgrep when available. Legacy payload and text-transfer helpers are archived under `src/tools/` for manual reuse only. The project is intentionally lightweight and currently has no package manager, compiled build step, server runtime, database, or external service dependency.
 
 ## Project Background
 
@@ -53,7 +54,8 @@ QS exists to speed up day-to-day lookup across shared Orcas folders, especially 
 - `src/QuickSearch.IndexStatus.ps1`: Lightweight status writer used by index rebuilds to report scan/index/write progress to the UI.
 - `src/QuickSearch.IndexPolicy.ps1`: Index policy helper for `AllowedFileExtNames` extension whitelist handling and configurable tag extraction limits, including `MaxTagFileSizeMB` handling for new or changed large files.
 - `src/QuickSearch.IndexResume.ps1`: Resumable index checkpoint helper that writes `src/data/index.json.tmp`, reads interrupted checkpoint data as a reuse source, and completes the final index replacement safely.
-- `src/QuickSearch.Index.ps1`: TEAM index module that writes `src/data/index.json` schema v2 with `documents` and inverted `terms`, streams target files for top-word extraction, reuses unchanged file metadata during rebuilds, caches parsed index reads, materializes schema v2 search results in a single document pass, writes progress status, and keeps legacy schema search compatibility.
+- `src/QuickSearch.Index.ps1`: TEAM index module that writes schema v3 sharded indexes with a manifest plus document and term shard files, streams target files for top-word extraction, reuses unchanged file metadata during rebuilds, caches parsed index reads, materializes results after term lookup, writes progress status, and keeps legacy schema v2/search compatibility.
+- `src/QuickSearch.IndexShard.ps1`: Sharded index helper that writes schema v3 manifests, document shards, and term shards, reads only the shards needed for TEAM quick search results, and summarizes sharded index metadata for the Index popup.
 - `src/QuickSearch.Search.ps1`: Filesystem search helper used by the UI and background search job for filename and file-content searches, including `MaxSearchResults`, `MaxContentScanFileSizeMB`, ignored-folder pruning, TEAM index candidate reuse, scan-scope roots, and optional ripgrep acceleration with PowerShell fallback.
 - `src/tools/QuickSearch.TextTransfer.ps1`: Archived command-line utility that compresses files or folders into ZIP bytes, writes Base64 text for text-only transfer, can split oversized output when explicitly used, and decodes/extracts the payload on the destination computer.
 - `src/tools/QuickSearch.UltraTransfer.ps1`: Archived PowerShell 7+ command-line utility that packs files into a stored ZIP container, Brotli-compresses the binary container, converts it to Base64 text, and can split output when explicitly used.
@@ -61,7 +63,7 @@ QS exists to speed up day-to-day lookup across shared Orcas folders, especially 
 - `src/tools/QuickSearch.Payload.Encode.bat`: Archived double-click payload encode launcher retained for manual reuse.
 - `src/tools/QuickSearch.Payload.Decode.bat`: Archived double-click payload decode launcher retained for manual reuse.
 - `src/settings/config.json` and `src/profiles/*.profile.json`: Local defaults for version, selected profile name, title, dimensions, mapped-drive paths, search types, allowed/ignored folder/file hints, tag count settings, tag extraction limits, and Content (Slow) performance settings. `default.profile.json` is the default profile.
-- `src/data/index.sample.json`: Schema v2 sample index file for reference; runtime rebuilds still write generated data to `src/data/index.json`.
+- `src/data/index.sample.json`: Schema v2 sample index file for legacy compatibility reference; runtime rebuilds write schema v3 manifest data to `src/data/index.json` plus shard files under `src/data/index-shards/`.
 - `src/QuickSearch.vbs`: No-console Windows Script Host launcher that starts `src/QuickSearch.ps1` through hidden PowerShell so only the Windows Forms UI is shown.
 - `src/QuickSearch.bat`: Compatibility batch launcher that delegates to `src/QuickSearch.vbs`; batch files may still briefly show a `cmd.exe` window when double-clicked.
 - `tests/smoke-index.ps1`: Non-GUI smoke test for TEAM index generation, ignored-file filtering, generated tags, and indexed lookup.

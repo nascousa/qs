@@ -15,11 +15,13 @@ logs/
 *.swp
 index.json
 src/data/index.json
+src/data/index-shards/
 TagManager/index.json
 
 # PowerShell and test output
 TestResults/
 coverage/
+tests/example/
 *.trx
 *.xml
 

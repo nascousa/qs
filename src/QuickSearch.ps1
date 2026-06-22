@@ -458,15 +458,12 @@ Function GUI()
 
         $selectedType = $ComboBox_Type.Text
         if ($selectedType -eq "TEAM") {
-            $teamPathTemplate = $config.TeamPath
-            if ([string]::IsNullOrWhiteSpace($teamPathTemplate)) {
-                $teamPathTemplate = ':\Orcas_Main\team\'
-            }
+            $teamPathTemplate = GetTeamPathTemplate $config
             $path = ResolveConfiguredPath -DriveLetter $ComboBox_DriveLetter.Text -PathTemplate $teamPathTemplate
             $SearchType = 1 # TEAM
         }
         else {
-            $basePath = ResolveConfiguredPath -DriveLetter $ComboBox_DriveLetter.Text -PathTemplate $config.Path
+            $basePath = ResolveConfiguredPath -DriveLetter $ComboBox_DriveLetter.Text -PathTemplate (GetDocPathTemplate $config)
             if ($selectedType -eq "ALL") {
                 $path = $basePath
             }
@@ -568,7 +565,7 @@ Function GUI()
     # Button_Index Add_Click event handler
     # --------------------------------------------------------------------------------
     $Button_Index.Add_Click({
-        ShowIndexSettings -Owner $main_form -Config $config -ConfigPath $ConfigPath -IndexFilePath $IndexFilePath -DriveLetter $ComboBox_DriveLetter.Text
+        ShowIndexSettings -Owner $main_form -Config $config -ConfigPath $ConfigPath -IndexFilePath $IndexFilePath -DriveLetter $ComboBox_DriveLetter.Text -ProfilesDirectory $ProfilesDirectory
     })
 
 

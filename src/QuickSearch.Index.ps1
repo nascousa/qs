@@ -11,6 +11,8 @@ $IndexPolicyScriptPath = Join-Path -Path $PSScriptRoot -ChildPath 'QuickSearch.I
 . $IndexPolicyScriptPath
 $IndexResumeScriptPath = Join-Path -Path $PSScriptRoot -ChildPath 'QuickSearch.IndexResume.ps1'
 . $IndexResumeScriptPath
+$IndexShardScriptPath = Join-Path -Path $PSScriptRoot -ChildPath 'QuickSearch.IndexShard.ps1'
+. $IndexShardScriptPath
 
 Function GetFileIndexPropertyValue {
     param(
@@ -787,6 +789,10 @@ Function SearchFileIndex {
         return @()
     }
 
+    if (TestFileIndexShardsAvailable -IndexFilePath $IndexFilePath) {
+        return SearchShardedFileIndex -IndexFilePath $IndexFilePath -Keyword $Keyword -MaxResults $MaxResults
+    }
+
     try {
         $indexData = ReadCachedFileIndexData -IndexFilePath $IndexFilePath
     }
@@ -885,9 +891,13 @@ Function CreateFileIndex {
 
     WriteFileIndexStatus -Path $StatusFilePath -Stage 'Writing index' -Processed $processedFiles -Total $files.Count -Indexed $indexedFiles.Count -Skipped $skippedFiles -Reused $reusedFiles
     WriteFileIndexCheckpoint -IndexFilePath $IndexFilePath -Root $Root -Documents $indexedFiles -Terms $terms -Processed $processedFiles -Total $files.Count -Skipped $skippedFiles -Complete $true
+    $checkpointData = ReadFileIndexData -Path (GetFileIndexTempPath -IndexFilePath $IndexFilePath)
     CompleteFileIndexFromCheckpoint -IndexFilePath $IndexFilePath
+    if ($null -ne $checkpointData) {
+        [void](WriteFileIndexShardsFromData -IndexFilePath $IndexFilePath -IndexData $checkpointData)
+    }
 
     WriteFileIndexStatus -Path $StatusFilePath -Stage 'Completed' -Processed $processedFiles -Total $files.Count -Indexed $indexedFiles.Count -Skipped $skippedFiles -Reused $reusedFiles
-    Write-Host "File index.json has been created successfully with inverted terms!" -ForegroundColor Green
+    Write-Host "QuickSearch sharded index has been created successfully!" -ForegroundColor Green
     return $true
 }

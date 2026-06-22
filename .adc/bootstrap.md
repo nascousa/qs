@@ -76,8 +76,8 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File .\tests\smoke-payload.ps1
 6. Open `Settings`, confirm `default.profile.json` is selected by default, choose another available profile if needed, and apply it.
 7. Select a drive letter that is actually mapped on the machine.
 8. Run one filename search against a small folder or test fixture first.
-9. Open `Index`, confirm the settings popup shows TEAM path, top words per file, ignored filenames, allowed extensions, ignored extensions, and ignored folders.
-10. Use Index `Re-Index Team Folder` on a small accessible TEAM folder and confirm the indexing popup shows stage, file counts, reused count, current file name, elapsed time, and a Cancel button before `src/data/index.json` is regenerated.
+9. Open `Index`, confirm the settings popup shows document path, TEAM path, top words per file, ignored filenames, allowed extensions, ignored extensions, ignored folders, and a quick index-file summary with `Refresh Data` for full counts.
+10. Use Index `Re-Index Team Folder` on a small accessible TEAM folder and confirm the indexing popup shows stage, file counts, reused count, current file name, elapsed time, and a Cancel button before `src/data/index.json` and `src/data/index-shards/` are regenerated.
 11. Save settings only when the displayed path and ignore lists are intended.
 12. Run one TEAM quick search that matches a filename or generated tag.
 13. Confirm the preview pane is collapsed before a file is selected and the results list uses the available width.

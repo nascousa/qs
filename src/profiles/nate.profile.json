@@ -1,12 +1,12 @@
 {
-    "DriveLetter": "D",
-    "DocPath": ":\\Orcas_Main\\TSG-SOP\\",
-    "TeamPath": ":\\Orcas_Main\\Team\\nasco\\",
-    "Types": [
-        "ALL",
-        "TSG",
-        "SOP",
-        "CASE",
-        "TEAM"
-    ]
+    "DriveLetter":  "D",
+    "DocPath":  ":\\Repos\\QuickSearch\\tests\\example\\TSG-SOP\\",
+    "TeamPath":  ":\\Repos\\QuickSearch\\tests\\example\\Team\\",
+    "Types":  [
+                  "ALL",
+                  "TSG",
+                  "SOP",
+                  "CASE",
+                  "TEAM"
+              ]
 }

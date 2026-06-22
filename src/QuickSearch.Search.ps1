@@ -199,8 +199,12 @@ Function GetQuickSearchIndexCandidateFiles {
     if ([string]::IsNullOrWhiteSpace($IndexFilePath) -or -not (Test-Path -LiteralPath $IndexFilePath -PathType Leaf)) { return @() }
 
     $indexData = $null
+    $documents = @()
     try {
-        if ($null -ne (Get-Command -Name ReadCachedFileIndexData -CommandType Function -ErrorAction SilentlyContinue)) {
+        if ($null -ne (Get-Command -Name TestFileIndexShardsAvailable -CommandType Function -ErrorAction SilentlyContinue) -and (TestFileIndexShardsAvailable -IndexFilePath $IndexFilePath)) {
+            $documents = @(GetFileIndexShardedDocuments -IndexFilePath $IndexFilePath)
+        }
+        elseif ($null -ne (Get-Command -Name ReadCachedFileIndexData -CommandType Function -ErrorAction SilentlyContinue)) {
             $indexData = ReadCachedFileIndexData -IndexFilePath $IndexFilePath
         }
         else {
@@ -211,10 +215,11 @@ Function GetQuickSearchIndexCandidateFiles {
         return @()
     }
 
-    if ($null -eq $indexData) { return @() }
-
-    $documents = @($indexData.documents)
-    if ($documents.Count -eq 0) { $documents = @($indexData) }
+    if ($documents.Count -eq 0) {
+        if ($null -eq $indexData) { return @() }
+        $documents = @($indexData.documents)
+        if ($documents.Count -eq 0) { $documents = @($indexData) }
+    }
 
     return @(
         foreach ($document in $documents) {

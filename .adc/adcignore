@@ -13,6 +13,7 @@ TestResults/
 coverage/
 index.json
 src/data/index.json
+src/data/index-shards/
 TagManager/index.json
 .adc/cga-relay/tasks/done/
 .adc/cga-relay/tasks/in-progress/

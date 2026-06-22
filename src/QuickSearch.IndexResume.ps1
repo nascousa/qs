@@ -46,12 +46,20 @@ Function GetFileIndexReusableDocumentPathMap {
 
     $documentsByPath = @{}
     foreach ($candidatePath in @((GetFileIndexTempPath -IndexFilePath $IndexFilePath), $IndexFilePath)) {
-        $indexData = ReadFileIndexData -Path $candidatePath
-        if ($null -eq $indexData) {
-            continue
+        $documents = @()
+        if ($candidatePath -eq $IndexFilePath -and $null -ne (Get-Command -Name TestFileIndexShardsAvailable -CommandType Function -ErrorAction SilentlyContinue) -and (TestFileIndexShardsAvailable -IndexFilePath $IndexFilePath)) {
+            $documents = @(GetFileIndexShardedDocuments -IndexFilePath $IndexFilePath)
+        }
+        else {
+            $indexData = ReadFileIndexData -Path $candidatePath
+            if ($null -eq $indexData) {
+                continue
+            }
+
+            $documents = @(GetFileIndexDocuments -IndexData $indexData)
         }
 
-        foreach ($document in @(GetFileIndexDocuments -IndexData $indexData)) {
+        foreach ($document in $documents) {
             $documentPath = GetFileIndexPropertyValue -Value $document -Name 'path'
             if ([string]::IsNullOrWhiteSpace($documentPath)) {
                 $documentPath = GetFileIndexPropertyValue -Value $document -Name 'FilePath'

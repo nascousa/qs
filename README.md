@@ -1,7 +1,7 @@
 # QuickSearch (QS)
 
-**Version:** v1.4.51
-**Date:** 2026-06-18  
+**Version:** v1.4.54
+**Date:** 2026-06-19
 **Status:** Air-gapped, pure PowerShell desktop search tool for mapped team folders  
 **ADC Standard:** 1.1.27  
 
@@ -31,7 +31,7 @@ Set-Location D:\Repos\QuickSearch
 PowerShell.exe -NoProfile -ExecutionPolicy Bypass -File .\src\QuickSearch.ps1
 ```
 
-The window title uses the `Version` value from `src/settings/config.json`, for example `QuickSearch v1.4.51`.
+The window title uses the `Version` value from `src/settings/config.json`, for example `QuickSearch v1.4.54`.
 
 ## Screenshots
 
@@ -52,7 +52,7 @@ Prompts, settings dialogs, and progress windows open centered over the main Quic
 
 ## Search Modes
 
-- `Filename/Tags (Quick)` is the fast path. For `TEAM`, it uses the generated index at `src/data/index.json`.
+- `Filename/Tags (Quick)` is the fast path. For `TEAM`, it uses the generated index manifest at `src/data/index.json` plus shard files under `src/data/index-shards/` when available.
 - `Content (Slow)` reads file contents at search time. Use it when you need to find text inside files.
 - `Scope` applies to `ALL` live scans. `Configured Types` scans configured folders such as TSG, SOP, and CASE. `All` scans the full selected root.
 
@@ -64,6 +64,7 @@ Search results show modified and created timestamps before each file path. Long 
 
 The `Index` popup lets you edit:
 
+- document path
 - TEAM path
 - top words per file
 - ignored filenames
@@ -71,9 +72,9 @@ The `Index` popup lets you edit:
 - ignored extensions
 - ignored folders
 
-`Re-Index Team Folder` rebuilds `src/data/index.json`. The index stores filenames, paths, and generated top-word tags. It does not store full file contents.
+`Re-Index Team Folder` rebuilds `src/data/index.json` and shard files under `src/data/index-shards/`. The index stores filenames, paths, and generated top-word tags. It does not store full file contents.
 
-The Index popup also shows current index data such as indexed file count, generated tag count, search term count, schema version, update time, and file size.
+The Index popup opens with a quick file-level index summary. Click `Refresh Data` when you need full index counts such as indexed file count, search term count, schema version, shard count, update time, and file size.
 
 ## Preview
 
@@ -87,7 +88,9 @@ Selecting a result opens the preview pane automatically. QS previews plain text,
 
 Profiles are for environment-specific values such as drive letter, document path, TEAM path, and type list. Global search and indexing defaults stay in `src/settings/config.json` unless a profile intentionally overrides them.
 
-The main config TEAM path targets the shared `Orcas_Main\Team` root by default; selected profiles can narrow that path when needed.
+Saving path changes from `Index` updates both `src/settings/config.json` and the active profile, so a UI restart keeps the edited document and TEAM paths.
+
+The main config and active profile both store path settings. Profiles can narrow or swap the document and TEAM roots for a specific environment.
 
 ## Validation
 

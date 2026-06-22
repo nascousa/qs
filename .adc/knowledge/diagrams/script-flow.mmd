@@ -6,7 +6,7 @@ flowchart TD
   SearchClick --> ResolvePath[Resolve mapped-drive path]
   ResolvePath --> SelectMode{Filename or content search?}
   SelectMode -->|Filename TSG/SOP/CASE| FilenameSearch[Get-ChildItem plus name filter]
-  SelectMode -->|Filename TEAM| TagIndexSearch[Read src/data/index.json documents terms]
+  SelectMode -->|Filename TEAM| TagIndexSearch[Read index manifest and shards]
   SelectMode -->|Content| ContentSearch[Get-ChildItem plus Select-String]
   FilenameSearch --> Results[ListBox results]
   TagIndexSearch --> Results
@@ -25,4 +25,5 @@ flowchart TD
   RenderUI --> Reindex[Re-index team folder]
   Reindex --> ExtractTags[Extract top English words]
   PopupReindex --> ExtractTags
-  ExtractTags --> IndexJson[Write src/data/index.json documents terms]
+  ExtractTags --> IndexJson[Write src/data/index.json manifest]
+  ExtractTags --> IndexShards[Write src/data/index-shards]

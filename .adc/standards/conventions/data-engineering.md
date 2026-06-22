@@ -6,7 +6,8 @@ QS uses JSON files for configuration and generated indexes. Search target files 
 
 - `src/settings/config.json`: Main version source, UI defaults, search type list, mapped-drive path templates, allowed/ignored file settings, tag indexing settings, and tag extraction limits such as `AllowedFileExtNames` and `MaxTagFileSizeMB`.
 - `src/profiles/*.profile.json`: Selectable local profile overlays. `default.profile.json` is the default profile, and `src/settings/config.json` `ProfileName` stores the selected profile file name.
-- `src/data/index.json`: Generated TEAM file index if the re-index action is used; schema v2 includes document metadata, generated tags, tag counts, and an inverted terms table.
+- `src/data/index.json`: Generated TEAM file index manifest if the re-index action is used; schema v3 points to document and term shard files under `src/data/index-shards/`.
+- `src/data/index-shards/`: Generated schema v3 document and term shard files used by TEAM quick search to avoid parsing one large JSON file.
 - `src/data/index.json.tmp`: Resumable TEAM index checkpoint written during rebuilds and replaced into `index.json` only after completion.
 - `src/data/index.sample.json`: Static schema v2 sample index file for reference and smoke validation.
 
@@ -17,7 +18,7 @@ QS uses JSON files for configuration and generated indexes. Search target files 
 - Use stable property names for generated indexes.
 - Treat generated index files as derived data unless explicitly promoted to fixtures.
 - Do not store private document contents in generated indexes.
-- Store generated top-word metadata only; do not persist full source file text in `src/data/index.json`.
+- Store generated top-word metadata only; do not persist full source file text in `src/data/index.json` or `src/data/index-shards/`.
 - Treat `AllowedFileExtNames` as an index file extension whitelist when it is non-empty; files outside the whitelist should be skipped before content reads.
 - Use `src/data/index.json.tmp` as resumable checkpoint data during long index rebuilds; do not delete it after interrupted indexing.
 - Reuse unchanged file document metadata when size and timestamp match, and only extract tags for new or changed files.
@@ -29,33 +30,36 @@ QS uses JSON files for configuration and generated indexes. Search target files 
 
 ## Suggested Index Schema
 
-Generated file indexes use schema v2 with stable top-level `documents` and `terms` properties:
+Generated file indexes use schema v3 with a stable manifest plus document and term shard files:
 
 ```json
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
+  "indexFormat": "QuickSearch.ShardedIndex",
   "root": "S:\\Orcas_Main\\team",
   "createdUtc": "2026-06-16T00:00:00.0000000Z",
-  "documents": [
+  "complete": true,
+  "documentCount": 1,
+  "termCount": 2,
+  "documentShardSize": 1000,
+  "shardDirectory": "index-shards",
+  "documentShards": [
     {
-      "id": 1,
-      "name": "example.txt",
-      "path": "S:\\Orcas_Main\\team\\example.txt",
-      "sizeInBytes": 1234,
-      "lastModified": "2026-06-15T00:00:00.0000000-07:00",
-      "lastWriteUtc": "2026-06-15T07:00:00.0000000Z",
-      "tags": ["example", "search"],
-      "tagCounts": {
-        "example": 4,
-        "search": 2
-      }
+      "key": "0000",
+      "file": "documents-0000.json",
+      "startId": 1,
+      "endId": 1,
+      "count": 1
     }
   ],
-  "terms": {
-    "example": [1],
-    "search": [1]
-  }
+  "termShards": [
+    {
+      "key": "e",
+      "file": "terms-e.json",
+      "count": 1
+    }
+  ]
 }
 ```
 
-Legacy array-shaped indexes remain readable for search compatibility, but new writes should use schema v2.
+Legacy array-shaped and schema v2 indexes remain readable for search compatibility, but new writes should use schema v3 shards.

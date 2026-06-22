@@ -139,6 +139,21 @@ Function ReadQuickSearchProfile {
 }
 
 
+Function SaveQuickSearchProfile {
+    param(
+        [object]$Profile,
+        [string]$ProfilePath
+    )
+
+    $profileParentPath = Split-Path -Parent $ProfilePath
+    if (-not [string]::IsNullOrWhiteSpace($profileParentPath) -and -not (Test-Path -LiteralPath $profileParentPath)) {
+        New-Item -ItemType Directory -Path $profileParentPath -Force | Out-Null
+    }
+
+    $Profile | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $ProfilePath
+}
+
+
 Function CopyQuickSearchProfileConfigValue {
     param(
         [object]$Profile,
@@ -163,8 +178,14 @@ Function ApplyQuickSearchProfile {
     )
 
     CopyQuickSearchProfileConfigValue -Profile $Profile -ProfileName 'DriveLetter' -Config $Config -ConfigName 'DriveLetter'
-    CopyQuickSearchProfileConfigValue -Profile $Profile -ProfileName 'DocPath' -Config $Config -ConfigName 'Path'
-    CopyQuickSearchProfileConfigValue -Profile $Profile -ProfileName 'Path' -Config $Config -ConfigName 'Path'
+    $docPath = GetQuickSearchProfilePropertyValue -Source $Profile -Name 'DocPath'
+    if ([string]::IsNullOrWhiteSpace([string]$docPath)) {
+        $docPath = GetQuickSearchProfilePropertyValue -Source $Profile -Name 'Path'
+    }
+    if (-not [string]::IsNullOrWhiteSpace([string]$docPath)) {
+        SetQuickSearchProfileObjectValue -Target $Config -Name 'DocPath' -Value $docPath
+        SetQuickSearchProfileObjectValue -Target $Config -Name 'Path' -Value $docPath
+    }
     foreach ($name in @('TeamPath', 'Types', 'Ignored', 'IgnoredFilenames', 'AllowedFileExtNames', 'IgnoredFileExtNames', 'TagCount', 'MaxTagFileSizeMB', 'MaxSearchResults', 'MaxContentScanFileSizeMB', 'LiveContentScanScope', 'UseRipgrep', 'UseRipgrepForLiveContentScan')) {
         CopyQuickSearchProfileConfigValue -Profile $Profile -ProfileName $name -Config $Config -ConfigName $name
     }
@@ -173,6 +194,60 @@ Function ApplyQuickSearchProfile {
     }
 
     return $Config
+}
+
+
+Function SaveQuickSearchProfilePathSettings {
+    param(
+        [object]$Config,
+        [string]$ProfilesDirectory,
+        [string]$ProfileName = '',
+        [string]$DriveLetter = ''
+    )
+
+    if ($null -eq $Config) {
+        return $null
+    }
+
+    if ([string]::IsNullOrWhiteSpace($ProfilesDirectory)) {
+        $ProfilesDirectory = GetQuickSearchProfilesDirectory
+    }
+    if ([string]::IsNullOrWhiteSpace($ProfileName)) {
+        $ProfileName = GetQuickSearchSelectedProfileName -Config $Config
+    }
+
+    $profilePath = ResolveQuickSearchProfilePath -ProfilesDirectory $ProfilesDirectory -ProfileName $ProfileName
+    if (-not (Test-Path -LiteralPath $profilePath -PathType Leaf)) {
+        return $null
+    }
+
+    $profile = ReadQuickSearchProfile -ProfilePath $profilePath
+    if (-not [string]::IsNullOrWhiteSpace($DriveLetter)) {
+        SetQuickSearchProfileObjectValue -Target $profile -Name 'DriveLetter' -Value $DriveLetter
+    }
+
+    $docPath = GetQuickSearchProfilePropertyValue -Source $Config -Name 'DocPath'
+    if ([string]::IsNullOrWhiteSpace([string]$docPath)) {
+        $docPath = GetQuickSearchProfilePropertyValue -Source $Config -Name 'Path'
+    }
+    if (-not [string]::IsNullOrWhiteSpace([string]$docPath)) {
+        SetQuickSearchProfileObjectValue -Target $profile -Name 'DocPath' -Value $docPath
+        if ($null -ne $profile.PSObject.Properties['Path']) {
+            SetQuickSearchProfileObjectValue -Target $profile -Name 'Path' -Value $docPath
+        }
+    }
+
+    $teamPath = GetQuickSearchProfilePropertyValue -Source $Config -Name 'TeamPath'
+    if (-not [string]::IsNullOrWhiteSpace([string]$teamPath)) {
+        SetQuickSearchProfileObjectValue -Target $profile -Name 'TeamPath' -Value $teamPath
+    }
+
+    SaveQuickSearchProfile -Profile $profile -ProfilePath $profilePath
+    return [PSCustomObject]@{
+        Name = [System.IO.Path]::GetFileName($profilePath)
+        Path = $profilePath
+        Profile = $profile
+    }
 }
 
 

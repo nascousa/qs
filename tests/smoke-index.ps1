@@ -18,6 +18,49 @@ function Assert-True {
     }
 }
 
+function Get-TestFileIndexDocuments {
+    param([string]$Path)
+
+    if ($null -ne (Get-Command -Name TestFileIndexShardsAvailable -CommandType Function -ErrorAction SilentlyContinue) -and (TestFileIndexShardsAvailable -IndexFilePath $Path)) {
+        return @(GetFileIndexShardedDocuments -IndexFilePath $Path)
+    }
+
+    $index = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
+    if ($index.schemaVersion -eq 2) {
+        return @($index.documents)
+    }
+
+    return @($index)
+}
+
+function Get-TestFileIndexTermProperties {
+    param([string]$Path)
+
+    if ($null -ne (Get-Command -Name TestFileIndexShardsAvailable -CommandType Function -ErrorAction SilentlyContinue) -and (TestFileIndexShardsAvailable -IndexFilePath $Path)) {
+        $manifest = ReadFileIndexShardManifest -IndexFilePath $Path
+        return @(GetFileIndexShardedTermProperties -IndexFilePath $Path -Manifest $manifest)
+    }
+
+    $index = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
+    return @(GetFileIndexTermProperties -Terms $index.terms)
+}
+
+function Test-TestFileIndexTermContainsDocumentId {
+    param(
+        [string]$Path,
+        [string]$Term,
+        [int]$DocumentId
+    )
+
+    foreach ($property in @(Get-TestFileIndexTermProperties -Path $Path)) {
+        if ($property.Name -eq $Term -and @($property.Value) -contains $DocumentId) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $scriptPath = Join-Path -Path $repoRoot -ChildPath 'src\QuickSearch.ps1'
 $supportScriptPath = Join-Path -Path $repoRoot -ChildPath 'src\QuickSearch.Support.ps1'
@@ -30,6 +73,7 @@ $repoDefaultProfilePath = Join-Path -Path $repoProfilesPath -ChildPath 'default.
 $repoNateProfilePath = Join-Path -Path $repoProfilesPath -ChildPath 'nate.profile.json'
 $repoDataPath = Join-Path -Path $repoRoot -ChildPath 'src\data'
 $repoSampleIndexPath = Join-Path -Path $repoDataPath -ChildPath 'index.sample.json'
+$repoShardScriptPath = Join-Path -Path $repoRoot -ChildPath 'src\QuickSearch.IndexShard.ps1'
 $testRoot = Join-Path -Path ([System.IO.Path]::GetTempPath()) -ChildPath "qs-index-smoke-$([System.Guid]::NewGuid().ToString('N'))"
 $fixtureRoot = Join-Path -Path $testRoot -ChildPath 'team'
 $indexPath = Join-Path -Path (Join-Path -Path $testRoot -ChildPath 'data') -ChildPath 'index.json'
@@ -48,8 +92,11 @@ try {
     $repoConfig = Get-Content -LiteralPath $repoConfigPath -Raw | ConvertFrom-Json
     $repoDefaultProfile = Get-Content -LiteralPath $repoDefaultProfilePath -Raw | ConvertFrom-Json
     $repoNateProfile = Get-Content -LiteralPath $repoNateProfilePath -Raw | ConvertFrom-Json
-    Assert-True -Condition ('1.4.51' -eq $repoConfig.Version) -Message 'QS version should live in src\settings\config.json Version.'
-    Assert-True -Condition (':\Orcas_Main\Team\' -eq $repoConfig.TeamPath) -Message 'QS config should default TEAM indexing to the shared Team root.'
+    Assert-True -Condition ('1.4.54' -eq $repoConfig.Version) -Message 'QS version should live in src\settings\config.json Version.'
+    Assert-True -Condition (-not [string]::IsNullOrWhiteSpace([string]$repoConfig.DocPath)) -Message 'QS config should define DocPath for document searches.'
+    Assert-True -Condition (-not [string]::IsNullOrWhiteSpace([string]$repoConfig.TeamPath)) -Message 'QS config should define TeamPath for TEAM searches.'
+    Assert-True -Condition ($repoConfig.DocPath -eq (GetDocPathTemplate $repoConfig)) -Message 'QS should prefer config DocPath over legacy Path.'
+    Assert-True -Condition ($repoConfig.TeamPath -eq (GetTeamPathTemplate $repoConfig)) -Message 'QS should read TEAM searches from config TeamPath.'
     Assert-True -Condition (200 -eq $repoConfig.MaxSearchResults) -Message 'QS config should bound default search result count.'
     Assert-True -Condition (10 -eq $repoConfig.MaxContentScanFileSizeMB) -Message 'QS config should bound default live content scan file size.'
     Assert-True -Condition ('Configured Types' -eq $repoConfig.LiveContentScanScope) -Message 'QS config should default ALL live scans to configured type roots.'
@@ -63,6 +110,9 @@ try {
     $selectedProfileName = GetQuickSearchSelectedProfileName -Config $repoConfig
     $selectedProfilePath = ResolveQuickSearchProfilePath -ProfilesDirectory $repoProfilesPath -ProfileName $selectedProfileName
     Assert-True -Condition (Test-Path -LiteralPath $selectedProfilePath) -Message 'QS selected profile should resolve to an existing profile file.'
+    $selectedProfile = Get-Content -LiteralPath $selectedProfilePath -Raw | ConvertFrom-Json
+    Assert-True -Condition ($repoConfig.DocPath -eq $selectedProfile.DocPath) -Message 'Selected profile DocPath should match config so restarts preserve saved Index paths.'
+    Assert-True -Condition ($repoConfig.TeamPath -eq $selectedProfile.TeamPath) -Message 'Selected profile TeamPath should match config so restarts preserve saved Index paths.'
     Assert-True -Condition ($repoConfig.AllowedFileExtNames -contains '.txt') -Message 'QS config should include an index file extension whitelist.'
     Assert-True -Condition ($repoConfig.AllowedFileExtNames -contains '.html') -Message 'QS config should include HTML files in the index whitelist.'
     Assert-True -Condition (Test-Path -LiteralPath $repoSampleIndexPath) -Message 'QS should ship an index sample file under src\data.'
@@ -91,8 +141,8 @@ try {
     Assert-True -Condition ($nateProfileState.Applied) -Message 'UseQuickSearchProfile should apply an existing profile.'
     Assert-True -Condition ('nate.profile.json' -eq $nateProfileState.Name) -Message 'Applied profile state should report the selected profile name.'
     Assert-True -Condition ('D' -eq $nateConfig.DriveLetter) -Message 'Profile should override DriveLetter.'
-    Assert-True -Condition (':\Orcas_Main\TSG-SOP\' -eq $nateConfig.Path) -Message 'Profile DocPath should override config Path.'
-    Assert-True -Condition (':\Orcas_Main\Team\nasco\' -eq $nateConfig.TeamPath) -Message 'Profile should override TeamPath.'
+    Assert-True -Condition ($repoNateProfile.DocPath -eq $nateConfig.Path) -Message 'Profile DocPath should override config Path.'
+    Assert-True -Condition ($repoNateProfile.TeamPath -eq $nateConfig.TeamPath) -Message 'Profile should override TeamPath.'
     Assert-True -Condition ($nateConfig.Types -contains 'TEAM') -Message 'Profile should override search Types.'
     Assert-True -Condition ($nateConfig.Ignored -contains 'node_modules') -Message 'Profile should preserve global ignored folders when the profile does not override them.'
     Assert-True -Condition ('nate.profile.json' -eq $nateConfig.ProfileName) -Message 'Profile apply should persist the selected profile name in config.'
@@ -156,6 +206,10 @@ try {
     Assert-True -Condition ($supportScriptContent -match 'Function SetQuickSearchDialogCenter') -Message 'QS should define a shared dialog centering helper.'
     Assert-True -Condition ($supportScriptContent -match 'Function ShowQuickSearchMessageBox') -Message 'QS message boxes should use an owner-aware helper.'
     Assert-True -Condition ($supportScriptContent -match 'Function GetQuickSearchIndexSummaryText') -Message 'Index Settings should be able to summarize current index data.'
+    Assert-True -Condition ($supportScriptContent -match 'Function GetQuickSearchIndexFileSummaryText') -Message 'Index Settings should open with a lightweight index file summary.'
+    Assert-True -Condition ($supportScriptContent -match 'Click Refresh Data for full index counts') -Message 'Index Settings should defer full index counts until requested.'
+    Assert-True -Condition ($supportScriptContent -match '\$Button_RefreshIndexData\.Text\s*=\s*''Refresh Data''') -Message 'Index Settings should expose an explicit full-data refresh button.'
+    Assert-True -Condition ($supportScriptContent -match 'SaveQuickSearchProfilePathSettings') -Message 'Index Settings should save edited paths to the active profile.'
     Assert-True -Condition ($supportScriptContent -match 'Function NewQuickSearchResultItem') -Message 'Support helpers should create display-ready result items with file timestamps.'
     Assert-True -Condition ($supportScriptContent -match 'Function SelectQuickSearchResultItems') -Message 'Support helpers should filter result items.'
     Assert-True -Condition ($supportScriptContent -match 'Function TestQuickSearchFilterText') -Message 'Support helpers should evaluate result filter boolean syntax.'
@@ -163,9 +217,9 @@ try {
     Assert-True -Condition ($supportScriptContent -match 'access `and report') -Message 'About popup should explain backtick escape for literal operator words.'
     Assert-True -Condition ($supportScriptContent -match 'Function SortQuickSearchResultItems') -Message 'Support helpers should sort result items.'
     Assert-True -Condition ($supportScriptContent -match '\$Label_IndexData\.Text\s*=\s*''Index data''') -Message 'Index Settings should show an index data area.'
-    Assert-True -Condition ($supportScriptContent -match '\$Button_RebuildIndex\.Location\s*=\s*New-Object System\.Drawing\.Point\(\$labelLeft, 395\)') -Message 'Re-Index button should be positioned at the lower-left of Index Settings.'
-    Assert-True -Condition ($supportScriptContent -match '\$Button_Save\.Location\s*=\s*New-Object System\.Drawing\.Point\(470, 395\)') -Message 'Save button should be positioned at the lower-right of Index Settings.'
-    Assert-True -Condition ($supportScriptContent -match '\$Button_Close\.Location\s*=\s*New-Object System\.Drawing\.Point\(560, 395\)') -Message 'Close button should be positioned at the lower-right of Index Settings.'
+    Assert-True -Condition ($supportScriptContent -match '\$Button_RebuildIndex\.Location\s*=\s*New-Object System\.Drawing\.Point\(\$labelLeft, 465\)') -Message 'Re-Index button should be positioned at the lower-left of Index Settings.'
+    Assert-True -Condition ($supportScriptContent -match '\$Button_Save\.Location\s*=\s*New-Object System\.Drawing\.Point\(470, 465\)') -Message 'Save button should be positioned at the lower-right of Index Settings.'
+    Assert-True -Condition ($supportScriptContent -match '\$Button_Close\.Location\s*=\s*New-Object System\.Drawing\.Point\(560, 465\)') -Message 'Close button should be positioned at the lower-right of Index Settings.'
     Assert-True -Condition ($supportScriptContent -match 'Add_Enter') -Message 'Keyword placeholder should clear when the textbox receives focus.'
     Assert-True -Condition ($supportScriptContent -match 'Add_Leave') -Message 'Keyword placeholder should restore when the textbox loses focus empty.'
     $asyncScriptContent = Get-Content -LiteralPath $asyncScriptPath -Raw
@@ -221,11 +275,15 @@ try {
 
     $indexScriptPath = Join-Path -Path $repoRoot -ChildPath 'src\QuickSearch.Index.ps1'
     $indexScriptContent = Get-Content -LiteralPath $indexScriptPath -Raw
+    $indexShardScriptContent = Get-Content -LiteralPath $repoShardScriptPath -Raw
     Assert-True -Condition ($indexScriptContent -notmatch '\$content\s*=\s*Get-Content\s+-LiteralPath\s+\$FilePath\s+-Raw') -Message 'Top-word indexing should not read an entire target file into memory.'
     Assert-True -Condition ($indexScriptContent -notmatch '\$words\s*=\s*\$content\s+-split') -Message 'Top-word indexing should not materialize all split words at once.'
     Assert-True -Condition ($indexScriptContent -match 'ReadCachedFileIndexData') -Message 'Index searches should read JSON through the reusable cached index data helper.'
     Assert-True -Condition ($indexScriptContent -match 'QuickSearchFileIndexCache') -Message 'Index searches should cache parsed index JSON within the current process.'
     Assert-True -Condition ($indexScriptContent -match 'LastWriteUtcTicks') -Message 'Index cache entries should be invalidated by file timestamp metadata.'
+    Assert-True -Condition ($indexScriptContent -match 'WriteFileIndexShardsFromData') -Message 'Index rebuild should write sharded schema v3 output.'
+    Assert-True -Condition ($indexShardScriptContent -match 'Function SearchShardedFileIndex') -Message 'Shard helper should provide sharded TEAM quick search.'
+    Assert-True -Condition ($indexShardScriptContent -match 'schemaVersion = 3') -Message 'Shard helper should write schema v3 shard data.'
 
     $launcherContent = Get-Content -LiteralPath $launcherPath -Raw
     Assert-True -Condition ($launcherContent -match 'QuickSearch\.vbs') -Message 'QuickSearch.bat should delegate UI launch to the no-console VBS launcher.'
@@ -247,6 +305,7 @@ try {
     Assert-True -Condition ('one, two, three, four' -eq (ConvertArrayToDelimitedText $parsedValues)) -Message 'ConvertArrayToDelimitedText should format settings values.'
 
     $settingsConfig = [PSCustomObject]@{}
+    SetConfigValue -Config $settingsConfig -Name 'DocPath' -Value ':\Orcas_Main\TSG-SOP\'
     SetConfigValue -Config $settingsConfig -Name 'TeamPath' -Value ':\Orcas_Main\team\'
     SetConfigValue -Config $settingsConfig -Name 'Version' -Value '9.8.7'
     SetConfigValue -Config $settingsConfig -Name 'TagCount' -Value 4
@@ -256,12 +315,35 @@ try {
     $settingsConfigPath = Join-Path -Path (Join-Path -Path $testRoot -ChildPath 'settings') -ChildPath 'config.json'
     SaveConfig -Config $settingsConfig -ConfigPath $settingsConfigPath
     $savedSettings = Get-Content -LiteralPath $settingsConfigPath -Raw | ConvertFrom-Json
+    Assert-True -Condition ('D:\Orcas_Main\TSG-SOP\' -eq (ResolveConfiguredPath -DriveLetter 'D' -PathTemplate (GetDocPathTemplate $savedSettings))) -Message 'Saved DocPath template should resolve with the selected drive.'
     Assert-True -Condition ('D:\Orcas_Main\team\' -eq (ResolveConfiguredPath -DriveLetter 'D' -PathTemplate (GetTeamPathTemplate $savedSettings))) -Message 'Saved TEAM path template should resolve with the selected drive.'
     Assert-True -Condition ('9.8.7' -eq $savedSettings.Version) -Message 'SaveConfig should persist Version.'
     Assert-True -Condition (4 -eq $savedSettings.TagCount) -Message 'SaveConfig should persist TagCount.'
     Assert-True -Condition (2 -eq $savedSettings.MaxTagFileSizeMB) -Message 'SaveConfig should persist MaxTagFileSizeMB.'
     Assert-True -Condition ($savedSettings.AllowedFileExtNames -contains '.md') -Message 'SaveConfig should persist AllowedFileExtNames.'
     Assert-True -Condition ($savedSettings.IgnoredFileExtNames -contains '.tmp') -Message 'SaveConfig should persist array settings.'
+
+    $profileSaveRoot = Join-Path -Path $testRoot -ChildPath 'profile-save'
+    New-Item -ItemType Directory -Path $profileSaveRoot -Force | Out-Null
+    $profileSavePath = Join-Path -Path $profileSaveRoot -ChildPath 'active.profile.json'
+    [PSCustomObject]@{
+        DriveLetter = 'X'
+        DocPath = ':\Before\Docs\'
+        TeamPath = ':\Before\Team\'
+        Types = @('ALL', 'TEAM')
+    } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $profileSavePath
+    $profileSaveConfig = [PSCustomObject]@{
+        ProfileName = 'active.profile.json'
+        DocPath = ':\After\Docs\'
+        Path = ':\After\Docs\'
+        TeamPath = ':\After\Team\'
+    }
+    $profileSaveResult = SaveQuickSearchProfilePathSettings -Config $profileSaveConfig -ProfilesDirectory $profileSaveRoot -DriveLetter 'Q'
+    Assert-True -Condition ($null -ne $profileSaveResult) -Message 'Profile path settings save should return the saved profile state.'
+    $savedProfile = Get-Content -LiteralPath $profileSavePath -Raw | ConvertFrom-Json
+    Assert-True -Condition ('Q' -eq $savedProfile.DriveLetter) -Message 'Profile path settings save should persist the selected drive letter.'
+    Assert-True -Condition (':\After\Docs\' -eq $savedProfile.DocPath) -Message 'Profile path settings save should persist DocPath.'
+    Assert-True -Condition (':\After\Team\' -eq $savedProfile.TeamPath) -Message 'Profile path settings save should persist TeamPath.'
 
     $testRepoRoot = Join-Path -Path $testRoot -ChildPath 'repo'
     $testAdcRoot = Join-Path -Path $testRepoRoot -ChildPath '.adc'
@@ -465,11 +547,11 @@ try {
     }
     $created = CreateFileIndex -Root $fixtureRoot -Config $limitedConfig -IndexFilePath $limitedIndexPath
     Assert-True -Condition $created -Message 'CreateFileIndex should allow a max tag file size policy.'
-    $limitedIndex = Get-Content -LiteralPath $limitedIndexPath -Raw | ConvertFrom-Json
-    $largeDocument = @($limitedIndex.documents | Where-Object { $_.name -eq 'large.txt' })[0]
+    $limitedDocuments = @(Get-TestFileIndexDocuments -Path $limitedIndexPath)
+    $largeDocument = @($limitedDocuments | Where-Object { $_.name -eq 'large.txt' })[0]
     Assert-True -Condition ($null -ne $largeDocument) -Message 'Large files should still be indexed by name/path.'
     Assert-True -Condition (0 -eq @($largeDocument.tags).Count) -Message 'Large files over the limit should skip generated tag extraction.'
-    Assert-True -Condition ($limitedIndex.terms.large -contains $largeDocument.id) -Message 'Large files should remain searchable by filename terms.'
+    Assert-True -Condition (Test-TestFileIndexTermContainsDocumentId -Path $limitedIndexPath -Term 'large' -DocumentId $largeDocument.id) -Message 'Large files should remain searchable by filename terms.'
 
     $whitelistRoot = Join-Path -Path $testRoot -ChildPath 'whitelist-team'
     $whitelistIndexPath = Join-Path -Path (Join-Path -Path $testRoot -ChildPath 'whitelist-data') -ChildPath 'index.json'
@@ -490,9 +572,9 @@ try {
     }
     $created = CreateFileIndex -Root $whitelistRoot -Config $whitelistConfig -IndexFilePath $whitelistIndexPath
     Assert-True -Condition $created -Message 'CreateFileIndex should allow extension whitelist indexing.'
-    $whitelistIndex = Get-Content -LiteralPath $whitelistIndexPath -Raw | ConvertFrom-Json
-    Assert-True -Condition (2 -eq @($whitelistIndex.documents).Count) -Message 'Extension whitelist should index only allowed extensions.'
-    Assert-True -Condition (0 -eq @($whitelistIndex.documents | Where-Object { $_.name -eq 'blocked.log' }).Count) -Message 'Extension whitelist should skip blocked extensions.'
+    $whitelistDocuments = @(Get-TestFileIndexDocuments -Path $whitelistIndexPath)
+    Assert-True -Condition (2 -eq $whitelistDocuments.Count) -Message 'Extension whitelist should index only allowed extensions.'
+    Assert-True -Condition (0 -eq @($whitelistDocuments | Where-Object { $_.name -eq 'blocked.log' }).Count) -Message 'Extension whitelist should skip blocked extensions.'
     $blockedMatches = @(SearchFileIndex -IndexFilePath $whitelistIndexPath -Keyword 'blocked')
     Assert-True -Condition (0 -eq $blockedMatches.Count) -Message 'Blocked extension files should not be searchable.'
     $liveBlockedMatches = @(SearchFiles -Root $whitelistRoot -Keyword 'blocked' -SearchContent $true -Config $whitelistConfig)
@@ -644,15 +726,18 @@ try {
     Assert-True -Condition $backgroundIndexSearch.Completed -Message 'Background index search should complete.'
     Assert-True -Condition ($backgroundIndexSearch.Results -contains $samplePath) -Message 'Background index search should find indexed tags.'
 
-    $indexItems = @(Get-Content -LiteralPath $indexPath -Raw | ConvertFrom-Json)
-    Assert-True -Condition (2 -eq $indexItems.schemaVersion) -Message 'Index should use schemaVersion 2.'
-    Assert-True -Condition (2 -eq @($indexItems.documents).Count) -Message "Expected two indexed documents, found $(@($indexItems.documents).Count)."
-    $sampleDocument = @($indexItems.documents | Where-Object { $_.name -eq 'sample.txt' })[0]
+    $indexManifest = Get-Content -LiteralPath $indexPath -Raw | ConvertFrom-Json
+    Assert-True -Condition (3 -eq $indexManifest.schemaVersion) -Message 'Index should use sharded schemaVersion 3.'
+    Assert-True -Condition (TestFileIndexShardsAvailable -IndexFilePath $indexPath) -Message 'Index shard directory should be available for schema v3 indexes.'
+    Assert-True -Condition (Test-Path -LiteralPath (GetFileIndexShardRootPath -IndexFilePath $indexPath -Manifest $indexManifest) -PathType Container) -Message 'Schema v3 index should write a shard directory.'
+    $indexDocuments = @(Get-TestFileIndexDocuments -Path $indexPath)
+    Assert-True -Condition (2 -eq $indexDocuments.Count) -Message "Expected two indexed documents, found $($indexDocuments.Count)."
+    $sampleDocument = @($indexDocuments | Where-Object { $_.name -eq 'sample.txt' })[0]
     Assert-True -Condition ($null -ne $sampleDocument) -Message 'Indexed documents should include sample.txt.'
     Assert-True -Condition ($sampleDocument.tags -contains 'alpha') -Message 'Generated tags should include alpha.'
     Assert-True -Condition (2 -eq $sampleDocument.tagCounts.alpha) -Message 'alpha tag count should be 2.'
-    Assert-True -Condition ($indexItems.terms.alpha -contains $sampleDocument.id) -Message 'Inverted term index should map alpha to the sample document id.'
-    Assert-True -Condition ($indexItems.terms.sample -contains $sampleDocument.id) -Message 'Inverted term index should map filename words to the sample document id.'
+    Assert-True -Condition (Test-TestFileIndexTermContainsDocumentId -Path $indexPath -Term 'alpha' -DocumentId $sampleDocument.id) -Message 'Inverted term index should map alpha to the sample document id.'
+    Assert-True -Condition (Test-TestFileIndexTermContainsDocumentId -Path $indexPath -Term 'sample' -DocumentId $sampleDocument.id) -Message 'Inverted term index should map filename words to the sample document id.'
 
     $tagMatches = @(SearchFileIndex -IndexFilePath $indexPath -Keyword 'alpha')
     Assert-True -Condition ($tagMatches -contains $samplePath) -Message 'Tag search should find sample.txt.'
@@ -755,9 +840,10 @@ try {
     $rebuiltIndex = Get-Content -LiteralPath $indexPath -Raw | ConvertFrom-Json
     Assert-True -Condition ($true -eq $rebuiltIndex.complete) -Message 'Completed index should be marked complete.'
     Assert-True -Condition (-not (Test-Path -LiteralPath (GetFileIndexTempPath -IndexFilePath $indexPath))) -Message 'Completed index should remove the temporary checkpoint file.'
-    $rebuiltSampleDocument = @($rebuiltIndex.documents | Where-Object { $_.name -eq 'sample.txt' })[0]
+    $rebuiltDocuments = @(Get-TestFileIndexDocuments -Path $indexPath)
+    $rebuiltSampleDocument = @($rebuiltDocuments | Where-Object { $_.name -eq 'sample.txt' })[0]
     Assert-True -Condition ($rebuiltSampleDocument.tags -contains 'cachedword') -Message 'Unchanged files should reuse cached tag metadata.'
-    Assert-True -Condition ($rebuiltIndex.terms.cachedword -contains $rebuiltSampleDocument.id) -Message 'Rebuilt inverted terms should use the new document id for reused metadata.'
+    Assert-True -Condition (Test-TestFileIndexTermContainsDocumentId -Path $indexPath -Term 'cachedword' -DocumentId $rebuiltSampleDocument.id) -Message 'Rebuilt inverted terms should use the new document id for reused metadata.'
 
     $resumeRoot = Join-Path -Path $testRoot -ChildPath 'resume-team'
     $resumeIndexPath = Join-Path -Path (Join-Path -Path $testRoot -ChildPath 'resume-data') -ChildPath 'index.json'
@@ -802,8 +888,9 @@ try {
     $resumeIndex = Get-Content -LiteralPath $resumeIndexPath -Raw | ConvertFrom-Json
     Assert-True -Condition ($true -eq $resumeIndex.complete) -Message 'Resumed index should be marked complete.'
     Assert-True -Condition (-not (Test-Path -LiteralPath (GetFileIndexTempPath -IndexFilePath $resumeIndexPath))) -Message 'Resumed index should replace and remove the temporary checkpoint file.'
-    $resumedUnchangedDocument = @($resumeIndex.documents | Where-Object { $_.name -eq 'resume-unchanged.txt' })[0]
-    $resumedChangedDocument = @($resumeIndex.documents | Where-Object { $_.name -eq 'resume-changed.txt' })[0]
+    $resumedDocuments = @(Get-TestFileIndexDocuments -Path $resumeIndexPath)
+    $resumedUnchangedDocument = @($resumedDocuments | Where-Object { $_.name -eq 'resume-unchanged.txt' })[0]
+    $resumedChangedDocument = @($resumedDocuments | Where-Object { $_.name -eq 'resume-changed.txt' })[0]
     Assert-True -Condition ($resumedUnchangedDocument.tags -contains 'resumecached') -Message 'Resume should reuse unchanged document tag metadata from the temporary checkpoint.'
     Assert-True -Condition (-not ($resumedChangedDocument.tags -contains 'stale')) -Message 'Resume should not reuse stale metadata when file timestamps changed.'
     Assert-True -Condition ($resumedChangedDocument.tags -contains 'fresh') -Message 'Resume should re-index changed files.'

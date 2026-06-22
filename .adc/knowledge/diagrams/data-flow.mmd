@@ -8,8 +8,9 @@ flowchart TD
   FileScan --> FilenameSearch[Filename search]
   FileScan --> ContentSearch[Content search]
   RenderUI --> TeamQuickSearch[TEAM quick search]
-  TeamQuickSearch --> RootIndex[src/data/index.json documents and inverted terms]
-  RootIndex --> IndexedMatches[Filename path tag term matches]
+  TeamQuickSearch --> RootIndex[src/data/index.json manifest]
+  RootIndex --> IndexShards[src/data/index-shards term and document shards]
+  IndexShards --> IndexedMatches[Filename path tag term matches]
   FilenameSearch --> Results[ListBox results]
   ContentSearch --> Results
   IndexedMatches --> Results
@@ -26,3 +27,4 @@ flowchart TD
   IndexPopup --> Reindex[Re-index team folder]
   Reindex --> TagExtraction[Read files and extract top English words]
   TagExtraction --> RootIndex
+  TagExtraction --> IndexShards

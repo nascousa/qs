@@ -15,7 +15,9 @@ flowchart LR
   Support --> IndexModule[src/QuickSearch.Index.ps1]
   IndexModule --> Indexer
   Indexer --> TagExtractor[GetTopWords integrated index tag extraction]
-  TagExtractor --> GeneratedIndex[src/data/index.json documents terms]
+  TagExtractor --> GeneratedIndex[src/data/index.json manifest]
+  TagExtractor --> GeneratedShards[src/data/index-shards]
+  GeneratedShards --> SearchUI
   GeneratedIndex --> SearchUI
   ADC[.adc project context] --> Agents[AI assistants and maintainers]
   ADC --> CgaProfile[.adc/cga-relay/mcp/mcp-servers.json]

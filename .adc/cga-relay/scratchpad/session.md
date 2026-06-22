@@ -255,3 +255,10 @@ Use this file for task handoff notes, progress, validation evidence, blockers, r
 - Updated QS to 1.4.42 by renaming the content search radio label to `Content (Slow)`, adding in-preview secondary search controls, and highlighting active search keyword substrings in result-list paths when present.
 - Preview secondary search reuses the current selected file content and can highlight a different preview keyword without rerunning the main file search.
 - Validation passed with recursive PowerShell parse checks for `src/QuickSearch*.ps1`, JSON checks for settings/profiles/sample index, `tests/smoke-index.ps1`, and clean VS Code diagnostics on touched runtime/test files.
+
+## 2026-06-19
+
+- Updated QS to 1.4.53 so Index Settings opens quickly by showing a lightweight index file summary first; full index counts are loaded only when `Refresh Data` is clicked or after a rebuild completes.
+- Index Settings path saves now persist `DocPath`, legacy `Path`, `TeamPath`, and the selected drive to `src/settings/config.json`, and also write the active profile path settings so UI restarts preserve edited paths.
+- Synced the active `nate.profile.json` path settings with the current config paths to prevent the selected profile from overwriting the user-edited test paths on next launch.
+- Updated QS to 1.4.54 so TEAM indexing writes a schema v3 manifest at `src/data/index.json` plus term/document shards under `src/data/index-shards/`; TEAM quick search prefers the sharded index and keeps schema v2 fallback compatibility.

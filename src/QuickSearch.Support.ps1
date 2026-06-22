@@ -311,6 +311,23 @@ Function ConvertArrayToDelimitedText {
 }
 
 
+Function GetDocPathTemplate {
+    param(
+        [object]$Config
+    )
+
+    $docPathTemplate = $Config.DocPath
+    if ([string]::IsNullOrWhiteSpace($docPathTemplate)) {
+        $docPathTemplate = $Config.Path
+    }
+    if ([string]::IsNullOrWhiteSpace($docPathTemplate)) {
+        return ':\Orcas_Main\TSG-SOP\'
+    }
+
+    return $docPathTemplate
+}
+
+
 Function GetTeamPathTemplate {
     param(
         [object]$Config
@@ -884,6 +901,10 @@ Function GetQuickSearchIndexSummaryText {
         ) -join $newLine
     }
 
+    if ($null -ne (Get-Command -Name TestFileIndexShardsAvailable -CommandType Function -ErrorAction SilentlyContinue) -and (TestFileIndexShardsAvailable -IndexFilePath $IndexFilePath)) {
+        return GetFileIndexShardedSummaryText -IndexFilePath $IndexFilePath
+    }
+
     try {
         $indexFile = Get-Item -LiteralPath $IndexFilePath -ErrorAction Stop
         $indexData = ReadCachedFileIndexData -IndexFilePath $indexFile.FullName
@@ -944,18 +965,65 @@ Function GetQuickSearchIndexSummaryText {
     }
 }
 
+
+Function GetQuickSearchIndexFileSummaryText {
+    param(
+        [string]$IndexFilePath
+    )
+
+    $newLine = [Environment]::NewLine
+    if ([string]::IsNullOrWhiteSpace($IndexFilePath)) {
+        return 'Status: Index file is not configured.'
+    }
+
+    if (-not (Test-Path -LiteralPath $IndexFilePath -PathType Leaf)) {
+        return @(
+            'Status: Missing',
+            "Index file: $IndexFilePath",
+            'Files indexed: 0',
+            'Unique generated tags: 0',
+            'Search terms: 0'
+        ) -join $newLine
+    }
+
+    try {
+        $indexFile = Get-Item -LiteralPath $IndexFilePath -ErrorAction Stop
+        $indexSizeText = ConvertQuickSearchByteSizeText -Bytes $indexFile.Length
+        if ($null -ne (Get-Command -Name TestFileIndexShardsAvailable -CommandType Function -ErrorAction SilentlyContinue) -and (TestFileIndexShardsAvailable -IndexFilePath $IndexFilePath)) {
+            $manifest = ReadFileIndexShardManifest -IndexFilePath $IndexFilePath
+            $indexSizeText = ConvertQuickSearchByteSizeText -Bytes (GetFileIndexShardDirectorySizeBytes -IndexFilePath $IndexFilePath -Manifest $manifest)
+        }
+
+        return @(
+            'Status: Ready',
+            "Index file: $IndexFilePath",
+            "Updated: $($indexFile.LastWriteTime.ToString('yyyy-MM-dd HH:mm:ss'))",
+            "Index size: $indexSizeText",
+            'Click Refresh Data for full index counts.'
+        ) -join $newLine
+    }
+    catch {
+        return @(
+            'Status: Error reading index file',
+            "Index file: $IndexFilePath",
+            "Error: $($_.Exception.Message)"
+        ) -join $newLine
+    }
+}
+
 Function ShowIndexSettings {
     param(
         [System.Windows.Forms.Form]$Owner,
         [object]$Config,
         [string]$ConfigPath,
         [string]$IndexFilePath,
-        [string]$DriveLetter
+        [string]$DriveLetter,
+        [string]$ProfilesDirectory = ''
     )
 
     $settingsForm = New-Object System.Windows.Forms.Form
     $settingsForm.Text = 'Index Settings'
-    $settingsForm.ClientSize = New-Object System.Drawing.Size(660, 430)
+    $settingsForm.ClientSize = New-Object System.Drawing.Size(660, 500)
     $settingsForm.AutoSize = $false
     $settingsForm.AutoScaleMode = [System.Windows.Forms.AutoScaleMode]::Dpi
     $settingsForm.FormBorderStyle = 'FixedDialog'
@@ -968,39 +1036,64 @@ Function ShowIndexSettings {
     $inputLeft = 180
     $inputWidth = 450
 
+    $Label_DocPath = New-Object System.Windows.Forms.Label
+    $Label_DocPath.Text = 'Doc path template'
+    $Label_DocPath.Location = New-Object System.Drawing.Point($labelLeft, 20)
+    $Label_DocPath.Width = $labelWidth
+    $settingsForm.Controls.Add($Label_DocPath)
+
+    $TextBox_DocPath = New-Object System.Windows.Forms.TextBox
+    $TextBox_DocPath.Text = GetDocPathTemplate $Config
+    $TextBox_DocPath.Location = New-Object System.Drawing.Point($inputLeft, 18)
+    $TextBox_DocPath.Width = $inputWidth
+    $settingsForm.Controls.Add($TextBox_DocPath)
+
     $Label_TeamPath = New-Object System.Windows.Forms.Label
     $Label_TeamPath.Text = 'TEAM path template'
-    $Label_TeamPath.Location = New-Object System.Drawing.Point($labelLeft, 20)
+    $Label_TeamPath.Location = New-Object System.Drawing.Point($labelLeft, 55)
     $Label_TeamPath.Width = $labelWidth
     $settingsForm.Controls.Add($Label_TeamPath)
 
     $TextBox_TeamPath = New-Object System.Windows.Forms.TextBox
     $TextBox_TeamPath.Text = GetTeamPathTemplate $Config
-    $TextBox_TeamPath.Location = New-Object System.Drawing.Point($inputLeft, 18)
+    $TextBox_TeamPath.Location = New-Object System.Drawing.Point($inputLeft, 53)
     $TextBox_TeamPath.Width = $inputWidth
     $settingsForm.Controls.Add($TextBox_TeamPath)
 
-    $Label_ResolvedPath = New-Object System.Windows.Forms.Label
-    $Label_ResolvedPath.Text = 'Resolved path'
-    $Label_ResolvedPath.Location = New-Object System.Drawing.Point($labelLeft, 55)
-    $Label_ResolvedPath.Width = $labelWidth
-    $settingsForm.Controls.Add($Label_ResolvedPath)
+    $Label_ResolvedDocPath = New-Object System.Windows.Forms.Label
+    $Label_ResolvedDocPath.Text = 'Resolved doc path'
+    $Label_ResolvedDocPath.Location = New-Object System.Drawing.Point($labelLeft, 90)
+    $Label_ResolvedDocPath.Width = $labelWidth
+    $settingsForm.Controls.Add($Label_ResolvedDocPath)
 
-    $TextBox_ResolvedPath = New-Object System.Windows.Forms.TextBox
-    $TextBox_ResolvedPath.Text = ResolveConfiguredPath -DriveLetter $DriveLetter -PathTemplate $TextBox_TeamPath.Text
-    $TextBox_ResolvedPath.Location = New-Object System.Drawing.Point($inputLeft, 53)
-    $TextBox_ResolvedPath.Width = $inputWidth
-    $TextBox_ResolvedPath.ReadOnly = $true
-    $settingsForm.Controls.Add($TextBox_ResolvedPath)
+    $TextBox_ResolvedDocPath = New-Object System.Windows.Forms.TextBox
+    $TextBox_ResolvedDocPath.Text = ResolveConfiguredPath -DriveLetter $DriveLetter -PathTemplate $TextBox_DocPath.Text
+    $TextBox_ResolvedDocPath.Location = New-Object System.Drawing.Point($inputLeft, 88)
+    $TextBox_ResolvedDocPath.Width = $inputWidth
+    $TextBox_ResolvedDocPath.ReadOnly = $true
+    $settingsForm.Controls.Add($TextBox_ResolvedDocPath)
+
+    $Label_ResolvedTeamPath = New-Object System.Windows.Forms.Label
+    $Label_ResolvedTeamPath.Text = 'Resolved TEAM path'
+    $Label_ResolvedTeamPath.Location = New-Object System.Drawing.Point($labelLeft, 125)
+    $Label_ResolvedTeamPath.Width = $labelWidth
+    $settingsForm.Controls.Add($Label_ResolvedTeamPath)
+
+    $TextBox_ResolvedTeamPath = New-Object System.Windows.Forms.TextBox
+    $TextBox_ResolvedTeamPath.Text = ResolveConfiguredPath -DriveLetter $DriveLetter -PathTemplate $TextBox_TeamPath.Text
+    $TextBox_ResolvedTeamPath.Location = New-Object System.Drawing.Point($inputLeft, 123)
+    $TextBox_ResolvedTeamPath.Width = $inputWidth
+    $TextBox_ResolvedTeamPath.ReadOnly = $true
+    $settingsForm.Controls.Add($TextBox_ResolvedTeamPath)
 
     $Label_TagCount = New-Object System.Windows.Forms.Label
     $Label_TagCount.Text = 'Top words per file'
-    $Label_TagCount.Location = New-Object System.Drawing.Point($labelLeft, 90)
+    $Label_TagCount.Location = New-Object System.Drawing.Point($labelLeft, 160)
     $Label_TagCount.Width = $labelWidth
     $settingsForm.Controls.Add($Label_TagCount)
 
     $NumericUpDown_TagCount = New-Object System.Windows.Forms.NumericUpDown
-    $NumericUpDown_TagCount.Location = New-Object System.Drawing.Point($inputLeft, 88)
+    $NumericUpDown_TagCount.Location = New-Object System.Drawing.Point($inputLeft, 158)
     $NumericUpDown_TagCount.Width = 80
     $NumericUpDown_TagCount.Minimum = 1
     $NumericUpDown_TagCount.Maximum = 100
@@ -1009,60 +1102,60 @@ Function ShowIndexSettings {
 
     $Label_IgnoredFilenames = New-Object System.Windows.Forms.Label
     $Label_IgnoredFilenames.Text = 'Ignored filenames'
-    $Label_IgnoredFilenames.Location = New-Object System.Drawing.Point($labelLeft, 125)
+    $Label_IgnoredFilenames.Location = New-Object System.Drawing.Point($labelLeft, 195)
     $Label_IgnoredFilenames.Width = $labelWidth
     $settingsForm.Controls.Add($Label_IgnoredFilenames)
 
     $TextBox_IgnoredFilenames = New-Object System.Windows.Forms.TextBox
     $TextBox_IgnoredFilenames.Text = ConvertArrayToDelimitedText @($Config.IgnoredFilenames)
-    $TextBox_IgnoredFilenames.Location = New-Object System.Drawing.Point($inputLeft, 123)
+    $TextBox_IgnoredFilenames.Location = New-Object System.Drawing.Point($inputLeft, 193)
     $TextBox_IgnoredFilenames.Width = $inputWidth
     $settingsForm.Controls.Add($TextBox_IgnoredFilenames)
 
     $Label_IgnoredExtensions = New-Object System.Windows.Forms.Label
     $Label_IgnoredExtensions.Text = 'Ignored extensions'
-    $Label_IgnoredExtensions.Location = New-Object System.Drawing.Point($labelLeft, 160)
+    $Label_IgnoredExtensions.Location = New-Object System.Drawing.Point($labelLeft, 230)
     $Label_IgnoredExtensions.Width = $labelWidth
     $settingsForm.Controls.Add($Label_IgnoredExtensions)
 
     $TextBox_IgnoredExtensions = New-Object System.Windows.Forms.TextBox
     $TextBox_IgnoredExtensions.Text = ConvertArrayToDelimitedText @($Config.IgnoredFileExtNames)
-    $TextBox_IgnoredExtensions.Location = New-Object System.Drawing.Point($inputLeft, 158)
+    $TextBox_IgnoredExtensions.Location = New-Object System.Drawing.Point($inputLeft, 228)
     $TextBox_IgnoredExtensions.Width = $inputWidth
     $settingsForm.Controls.Add($TextBox_IgnoredExtensions)
 
     $Label_AllowedExtensions = New-Object System.Windows.Forms.Label
     $Label_AllowedExtensions.Text = 'Allowed extensions'
-    $Label_AllowedExtensions.Location = New-Object System.Drawing.Point($labelLeft, 195)
+    $Label_AllowedExtensions.Location = New-Object System.Drawing.Point($labelLeft, 265)
     $Label_AllowedExtensions.Width = $labelWidth
     $settingsForm.Controls.Add($Label_AllowedExtensions)
 
     $TextBox_AllowedExtensions = New-Object System.Windows.Forms.TextBox
     $TextBox_AllowedExtensions.Text = ConvertArrayToDelimitedText @($Config.AllowedFileExtNames)
-    $TextBox_AllowedExtensions.Location = New-Object System.Drawing.Point($inputLeft, 193)
+    $TextBox_AllowedExtensions.Location = New-Object System.Drawing.Point($inputLeft, 263)
     $TextBox_AllowedExtensions.Width = $inputWidth
     $settingsForm.Controls.Add($TextBox_AllowedExtensions)
 
     $Label_IgnoredFolders = New-Object System.Windows.Forms.Label
     $Label_IgnoredFolders.Text = 'Ignored folders'
-    $Label_IgnoredFolders.Location = New-Object System.Drawing.Point($labelLeft, 230)
+    $Label_IgnoredFolders.Location = New-Object System.Drawing.Point($labelLeft, 300)
     $Label_IgnoredFolders.Width = $labelWidth
     $settingsForm.Controls.Add($Label_IgnoredFolders)
 
     $TextBox_IgnoredFolders = New-Object System.Windows.Forms.TextBox
     $TextBox_IgnoredFolders.Text = ConvertArrayToDelimitedText @($Config.Ignored)
-    $TextBox_IgnoredFolders.Location = New-Object System.Drawing.Point($inputLeft, 228)
+    $TextBox_IgnoredFolders.Location = New-Object System.Drawing.Point($inputLeft, 298)
     $TextBox_IgnoredFolders.Width = $inputWidth
     $settingsForm.Controls.Add($TextBox_IgnoredFolders)
 
     $Label_IndexData = New-Object System.Windows.Forms.Label
     $Label_IndexData.Text = 'Index data'
-    $Label_IndexData.Location = New-Object System.Drawing.Point($labelLeft, 270)
+    $Label_IndexData.Location = New-Object System.Drawing.Point($labelLeft, 340)
     $Label_IndexData.Width = $labelWidth
     $settingsForm.Controls.Add($Label_IndexData)
 
     $TextBox_IndexData = New-Object System.Windows.Forms.TextBox
-    $TextBox_IndexData.Location = New-Object System.Drawing.Point($inputLeft, 268)
+    $TextBox_IndexData.Location = New-Object System.Drawing.Point($inputLeft, 338)
     $TextBox_IndexData.Width = $inputWidth
     $TextBox_IndexData.Height = 82
     $TextBox_IndexData.Multiline = $true
@@ -1070,36 +1163,49 @@ Function ShowIndexSettings {
     $TextBox_IndexData.ScrollBars = [System.Windows.Forms.ScrollBars]::Vertical
     $settingsForm.Controls.Add($TextBox_IndexData)
 
+    $Button_RefreshIndexData = New-Object System.Windows.Forms.Button
+    $Button_RefreshIndexData.Text = 'Refresh Data'
+    $Button_RefreshIndexData.Location = New-Object System.Drawing.Point($inputLeft, 425)
+    $Button_RefreshIndexData.Width = 95
+    $settingsForm.Controls.Add($Button_RefreshIndexData)
+
     $Label_Status = New-Object System.Windows.Forms.Label
     $Label_Status.Text = 'Ready'
-    $Label_Status.Location = New-Object System.Drawing.Point($labelLeft, 362)
-    $Label_Status.Width = 620
+    $Label_Status.Location = New-Object System.Drawing.Point(285, 428)
+    $Label_Status.Width = 355
     $settingsForm.Controls.Add($Label_Status)
 
     $Button_Save = New-Object System.Windows.Forms.Button
     $Button_Save.Text = 'Save'
-    $Button_Save.Location = New-Object System.Drawing.Point(470, 395)
+    $Button_Save.Location = New-Object System.Drawing.Point(470, 465)
     $Button_Save.Width = 80
     $settingsForm.Controls.Add($Button_Save)
 
     $Button_RebuildIndex = New-Object System.Windows.Forms.Button
     $Button_RebuildIndex.Text = 'Re-Index Team Folder'
-    $Button_RebuildIndex.Location = New-Object System.Drawing.Point($labelLeft, 395)
+    $Button_RebuildIndex.Location = New-Object System.Drawing.Point($labelLeft, 465)
     $Button_RebuildIndex.Width = 150
     $settingsForm.Controls.Add($Button_RebuildIndex)
 
     $Button_Close = New-Object System.Windows.Forms.Button
     $Button_Close.Text = 'Close'
-    $Button_Close.Location = New-Object System.Drawing.Point(560, 395)
+    $Button_Close.Location = New-Object System.Drawing.Point(560, 465)
     $Button_Close.Width = 80
     $settingsForm.Controls.Add($Button_Close)
 
     $refreshIndexData = {
         $TextBox_IndexData.Text = GetQuickSearchIndexSummaryText -IndexFilePath $IndexFilePath
     }
-    & $refreshIndexData
+    $refreshIndexFileData = {
+        $TextBox_IndexData.Text = GetQuickSearchIndexFileSummaryText -IndexFilePath $IndexFilePath
+    }
+    & $refreshIndexFileData
 
     $saveSettings = {
+        $docPathTemplate = $TextBox_DocPath.Text.Trim()
+        SetConfigValue -Config $Config -Name 'DocPath' -Value $docPathTemplate
+        SetConfigValue -Config $Config -Name 'Path' -Value $docPathTemplate
+        SetConfigValue -Config $Config -Name 'DriveLetter' -Value $DriveLetter
         SetConfigValue -Config $Config -Name 'TeamPath' -Value $TextBox_TeamPath.Text.Trim()
         SetConfigValue -Config $Config -Name 'TagCount' -Value ([int]$NumericUpDown_TagCount.Value)
         SetConfigValue -Config $Config -Name 'IgnoredFilenames' -Value @(ConvertDelimitedTextToArray $TextBox_IgnoredFilenames.Text)
@@ -1107,16 +1213,38 @@ Function ShowIndexSettings {
         SetConfigValue -Config $Config -Name 'IgnoredFileExtNames' -Value @(ConvertDelimitedTextToArray $TextBox_IgnoredExtensions.Text)
         SetConfigValue -Config $Config -Name 'Ignored' -Value @(ConvertDelimitedTextToArray $TextBox_IgnoredFolders.Text)
         SaveConfig -Config $Config -ConfigPath $ConfigPath
-        $TextBox_ResolvedPath.Text = ResolveConfiguredPath -DriveLetter $DriveLetter -PathTemplate $Config.TeamPath
-        $Label_Status.Text = "Saved to $ConfigPath"
-        & $refreshIndexData
+        $profileSaveResult = SaveQuickSearchProfilePathSettings -Config $Config -ProfilesDirectory $ProfilesDirectory -DriveLetter $DriveLetter
+        $TextBox_ResolvedDocPath.Text = ResolveConfiguredPath -DriveLetter $DriveLetter -PathTemplate $Config.DocPath
+        $TextBox_ResolvedTeamPath.Text = ResolveConfiguredPath -DriveLetter $DriveLetter -PathTemplate $Config.TeamPath
+        if ($null -ne $profileSaveResult) {
+            $Label_Status.Text = "Saved config and profile: $($profileSaveResult.Name)"
+        }
+        else {
+            $Label_Status.Text = "Saved to $ConfigPath"
+        }
+        & $refreshIndexFileData
     }
 
+    $TextBox_DocPath.Add_TextChanged({
+        $TextBox_ResolvedDocPath.Text = ResolveConfiguredPath -DriveLetter $DriveLetter -PathTemplate $TextBox_DocPath.Text
+    })
+
     $TextBox_TeamPath.Add_TextChanged({
-        $TextBox_ResolvedPath.Text = ResolveConfiguredPath -DriveLetter $DriveLetter -PathTemplate $TextBox_TeamPath.Text
+        $TextBox_ResolvedTeamPath.Text = ResolveConfiguredPath -DriveLetter $DriveLetter -PathTemplate $TextBox_TeamPath.Text
     })
 
     $Button_Save.Add_Click($saveSettings)
+    $Button_RefreshIndexData.Add_Click({
+        $Label_Status.Text = 'Refreshing index data...'
+        $Button_RefreshIndexData.Enabled = $false
+        try {
+            & $refreshIndexData
+            $Label_Status.Text = 'Index data refreshed'
+        }
+        finally {
+            $Button_RefreshIndexData.Enabled = $true
+        }
+    })
 
     $Button_RebuildIndex.Add_Click({
         & $saveSettings
